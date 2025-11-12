@@ -84,9 +84,34 @@ export default function Hero() {
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
             </div>
+            {/* Additional decorative images */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.8, delay: 0.4 }}
+              className="absolute -bottom-4 -left-4 w-24 h-24 rounded-2xl overflow-hidden glass-card hidden lg:block"
+            >
+              <img
+                src="https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=200&q=80"
+                alt="Training"
+                className="w-full h-full object-cover"
+              />
+            </motion.div>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.8, delay: 0.6 }}
+              className="absolute -top-4 -right-4 w-32 h-32 rounded-2xl overflow-hidden glass-card hidden lg:block"
+            >
+              <img
+                src="https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=200&q=80"
+                alt="Fitness"
+                className="w-full h-full object-cover"
+              />
+            </motion.div>
             {/* Decorative elements */}
-            <div className="absolute -bottom-6 -left-6 w-32 h-32 bg-purple-500 rounded-full opacity-20 blur-2xl"></div>
-            <div className="absolute -top-6 -right-6 w-40 h-40 bg-pink-500 rounded-full opacity-20 blur-2xl"></div>
+            <div className="absolute -bottom-6 -left-6 w-32 h-32 bg-purple-500 rounded-full opacity-20 blur-2xl animate-pulse"></div>
+            <div className="absolute -top-6 -right-6 w-40 h-40 bg-pink-500 rounded-full opacity-20 blur-2xl animate-pulse" style={{ animationDelay: '1s' }}></div>
           </motion.div>
         </div>
       </div>

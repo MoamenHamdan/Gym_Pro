@@ -10,6 +10,7 @@ import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
 import { motion } from 'framer-motion'
 import { FaLock, FaCheckCircle } from 'react-icons/fa'
+import { extractChunksFromVideoData, reconstructBase64FromChunks, getChunksFromSubcollection } from '@/lib/videoUtils'
 
 interface Category {
   id: string
@@ -27,6 +28,8 @@ interface Video {
   thumbnailUrl?: string
   duration?: string
   completed?: boolean
+  useSubcollection?: boolean
+  chunkCount?: number
 }
 
 const defaultCategories: Category[] = [
@@ -112,12 +115,28 @@ export default function ServicesPage() {
           ...doc.data(),
         })) as Video[]
 
-        // Fetch progress for each video
+        // Reconstruct video URLs from chunks if needed and fetch progress
         const videosWithProgress = await Promise.all(
           videosData.map(async (video) => {
+            if (!db) return video
+            
+            let videoUrl = ''
+            
+            // Check if video uses subcollection
+            if (video.useSubcollection && db) {
+              // Fetch chunks from subcollection
+              const chunks = await getChunksFromSubcollection(db, video.id)
+              videoUrl = reconstructBase64FromChunks(chunks)
+            } else {
+              // Check old format (chunks in same document or single videoUrl)
+              const videoChunks = extractChunksFromVideoData(video)
+              videoUrl = reconstructBase64FromChunks(videoChunks) || video.videoUrl || ''
+            }
+            
             const progressDoc = await getDoc(doc(db, 'users', user.uid, 'progress', video.id))
             return {
               ...video,
+              videoUrl: videoUrl,
               completed: progressDoc.exists() && progressDoc.data()?.completed === true,
             }
           })
@@ -135,6 +154,25 @@ export default function ServicesPage() {
     }
   }
 
+  const playCompletionSound = () => {
+    // Create a simple beep sound using Web Audio API
+    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
+    const oscillator = audioContext.createOscillator()
+    const gainNode = audioContext.createGain()
+
+    oscillator.connect(gainNode)
+    gainNode.connect(audioContext.destination)
+
+    oscillator.frequency.value = 800
+    oscillator.type = 'sine'
+
+    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime)
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3)
+
+    oscillator.start(audioContext.currentTime)
+    oscillator.stop(audioContext.currentTime + 0.3)
+  }
+
   const handleVideoComplete = async (videoId: string, completed: boolean) => {
     if (!user || !db) return
 
@@ -150,7 +188,13 @@ export default function ServicesPage() {
           video.id === videoId ? { ...video, completed } : video
         )
       )
-      toast.success(completed ? 'Video marked as completed!' : 'Video marked as incomplete')
+      
+      if (completed) {
+        playCompletionSound()
+        toast.success('Video marked as completed!')
+      } else {
+        toast.success('Video marked as incomplete')
+      }
     } catch (error) {
       console.error('Error updating progress:', error)
       toast.error('Error updating progress')
@@ -160,7 +204,7 @@ export default function ServicesPage() {
   const handlePurchase = (category: Category) => {
     // Replace with your payment link
     window.open('https://your-payment-link.com', '_blank')
-    toast.info('Redirecting to payment page...')
+    toast('Redirecting to payment page...', { icon: 'ℹ️' })
   }
 
   return (
@@ -264,14 +308,27 @@ export default function ServicesPage() {
                         <p className="text-purple-300 text-xs mb-2">Duration: {video.duration}</p>
                       )}
                       {video.videoUrl && (
-                        <a
-                          href={video.videoUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-300 text-sm mb-4 block hover:underline"
-                        >
-                          Watch Video →
-                        </a>
+                        <div className="mb-4">
+                          {video.videoUrl.startsWith('data:') ? (
+                            <div className="mt-2">
+                              <video
+                                src={video.videoUrl}
+                                controls
+                                className="w-full rounded-lg"
+                                style={{ maxHeight: '300px' }}
+                              />
+                            </div>
+                          ) : (
+                            <a
+                              href={video.videoUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-300 text-sm block hover:underline"
+                            >
+                              Watch Video →
+                            </a>
+                          )}
+                        </div>
                       )}
                       <label className="flex items-center space-x-2 cursor-pointer">
                         <input

@@ -13,8 +13,11 @@ interface Program {
   slug: string
   description: string
   icon: string
-  difficulty: string
-  tags: string[]
+  difficulty?: string
+  level?: string
+  type?: string
+  tags?: string[]
+  picture?: string
 }
 
 const defaultPrograms: Program[] = [
@@ -78,11 +81,14 @@ export default function Programs() {
           id: doc.id,
           ...doc.data(),
         })) as Program[]
+        // Only update if we have programs from database, otherwise keep defaults
         if (programsData.length > 0) {
           setPrograms(programsData)
         }
+        // If database has programs, use them; otherwise keep default programs
       } catch (error) {
         console.error('Error fetching programs:', error)
+        // Keep default programs on error
       }
     }
     fetchPrograms()
@@ -116,27 +122,41 @@ export default function Programs() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.6, delay: index * 0.1 }}
+                whileHover={{ scale: 1.05 }}
               >
-                <div className="glass-card p-6 rounded-2xl h-full flex flex-col">
-                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center mb-4">
-                    <IconComponent className="w-8 h-8 text-white" />
-                  </div>
+                <div className="glass-card p-6 rounded-2xl h-full flex flex-col overflow-hidden">
+                  {program.picture ? (
+                    <img
+                      src={program.picture}
+                      alt={program.title}
+                      className="w-full h-48 object-cover rounded-lg mb-4"
+                    />
+                  ) : (
+                    <div className="w-full h-48 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg mb-4 flex items-center justify-center">
+                      <IconComponent className="w-16 h-16 text-white opacity-80" />
+                    </div>
+                  )}
                   <h3 className="text-xl font-bold text-white mb-2">{program.title}</h3>
                   <p className="text-gray-300 text-sm mb-4 flex-grow">{program.description}</p>
-                  <div className="flex items-center justify-between mb-4">
-                    <span className="px-3 py-1 rounded-full glass text-white text-xs font-medium">
-                      {program.difficulty}
-                    </span>
-                    <div className="flex space-x-2">
-                      {program.tags.slice(0, 2).map((tag) => (
-                        <span
-                          key={tag}
-                          className="px-2 py-1 rounded glass text-white text-xs"
-                        >
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {(program.level || program.difficulty) && (
+                      <span className="px-3 py-1 rounded-full glass text-white text-xs font-medium">
+                        {program.level || program.difficulty}
+                      </span>
+                    )}
+                    {program.type && (
+                      <span className="px-3 py-1 rounded-full glass text-purple-300 text-xs font-medium">
+                        {program.type}
+                      </span>
+                    )}
+                    {program.tags && program.tags.slice(0, 2).map((tag) => (
+                      <span
+                        key={tag}
+                        className="px-2 py-1 rounded glass text-white text-xs"
+                      >
+                        {tag}
+                      </span>
+                    ))}
                   </div>
                   <Link
                     href={`/services#${program.slug}`}

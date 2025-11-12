@@ -50,6 +50,14 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       // Only admins can create/update/delete videos
       allow write: if isAdmin();
+      
+      // Chunks subcollection for large videos
+      match /chunks/{chunkId} {
+        // Authenticated users can read chunks
+        allow read: if isAuthenticated();
+        // Only admins can create/update/delete chunks
+        allow write: if isAdmin();
+      }
     }
     
     // Purchases collection
@@ -67,6 +75,74 @@ service cloud.firestore {
     match /roles/{userId} {
       // Only admins can read/write roles
       allow read, write: if isAdmin();
+    }
+    
+    // Coaches collection
+    match /coaches/{coachId} {
+      // Everyone can read coaches
+      allow read: if true;
+      // Only admins can create/update/delete coaches
+      allow write: if isAdmin();
+    }
+    
+    // Feedback collection
+    match /feedback/{feedbackId} {
+      // Everyone can read feedback
+      allow read: if true;
+      // Authenticated users can create feedback
+      allow create: if isAuthenticated();
+      // Users can update their own feedback, admins can update any
+      allow update: if isAuthenticated() && 
+                     (resource.data.userId == request.auth.uid || isAdmin());
+      // Users can delete their own feedback, admins can delete any
+      allow delete: if isAuthenticated() && 
+                      (resource.data.userId == request.auth.uid || isAdmin());
+    }
+    
+    // Events collection
+    match /events/{eventId} {
+      // Everyone can read events
+      allow read: if true;
+      // Only admins can create/update/delete events
+      allow write: if isAdmin();
+    }
+    
+    // Groups collection
+    match /groups/{groupId} {
+      // Everyone can read groups
+      allow read: if true;
+      // Authenticated users can create groups
+      allow create: if isAuthenticated();
+      // Group creator or admins can update
+      allow update: if isAuthenticated() && 
+                     (resource.data.createdBy == request.auth.uid || isAdmin());
+      // Group creator or admins can delete
+      allow delete: if isAuthenticated() && 
+                      (resource.data.createdBy == request.auth.uid || isAdmin());
+      
+      // Members subcollection
+      match /members/{memberId} {
+        // Everyone can read members
+        allow read: if true;
+        // Authenticated users can join/leave groups
+        allow write: if isAuthenticated();
+      }
+    }
+    
+    // Competitions collection
+    match /competitions/{competitionId} {
+      // Everyone can read competitions
+      allow read: if true;
+      // Only admins can create/update/delete competitions
+      allow write: if isAdmin();
+    }
+    
+    // WhyJoinUs collection
+    match /whyJoinUs/{itemId} {
+      // Everyone can read whyJoinUs items
+      allow read: if true;
+      // Only admins can create/update/delete
+      allow write: if isAdmin();
     }
   }
 }

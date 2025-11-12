@@ -4,6 +4,7 @@ import Hero from '@/components/home/Hero'
 import Programs from '@/components/home/Programs'
 import Motivational from '@/components/home/Motivational'
 import Features from '@/components/home/Features'
+import Feedback from '@/components/home/Feedback'
 
 export default function Home() {
   return (
@@ -13,6 +14,7 @@ export default function Home() {
       <Programs />
       <Motivational />
       <Features />
+      <Feedback />
       <Footer />
     </main>
   )

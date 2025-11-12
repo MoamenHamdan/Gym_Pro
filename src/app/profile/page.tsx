@@ -3,13 +3,21 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth'
-import { doc, updateDoc, getDoc } from 'firebase/firestore'
+import { doc, updateDoc, getDoc, collection, getDocs } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { toast } from 'react-hot-toast'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import { motion } from 'framer-motion'
+import { FaUpload } from 'react-icons/fa'
+import { fileToBase64, isImageFile, formatFileSize } from '@/lib/fileUtils'
+
+interface Program {
+  id: string
+  title: string
+  slug: string
+}
 
 export default function ProfilePage() {
   return (
@@ -25,18 +33,62 @@ function ProfileContent() {
   const [displayName, setDisplayName] = useState('')
   const [bio, setBio] = useState('')
   const [goals, setGoals] = useState('')
+  const [profilePicture, setProfilePicture] = useState('')
   const [selectedPrograms, setSelectedPrograms] = useState<string[]>([])
+  const [programs, setPrograms] = useState<Program[]>([])
   const [loading, setLoading] = useState(true)
+  const [uploadingPicture, setUploadingPicture] = useState(false)
+  const [picturePreview, setPicturePreview] = useState<string>('')
+
+  useEffect(() => {
+    const fetchPrograms = async () => {
+      if (!db) return
+      try {
+        const programsSnapshot = await getDocs(collection(db, 'programs'))
+        const programsData = programsSnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        })) as Program[]
+        setPrograms(programsData)
+      } catch (error) {
+        console.error('Error fetching programs:', error)
+      }
+    }
+    fetchPrograms()
+  }, [])
 
   useEffect(() => {
     if (userData) {
       setDisplayName(userData.displayName || '')
       setBio(userData.bio || '')
       setGoals(userData.goals || '')
+      setProfilePicture(userData.profilePicture || '')
       setSelectedPrograms(userData.selectedPrograms || [])
       setLoading(false)
     }
   }, [userData])
+
+  const handlePictureFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (!isImageFile(file)) {
+      toast.error('Please select an image file')
+      return
+    }
+
+    setUploadingPicture(true)
+    try {
+      const result = await fileToBase64(file, 10) // 10MB max for images
+      setProfilePicture(result.dataUrl)
+      setPicturePreview(result.dataUrl)
+      toast.success(`Profile picture uploaded: ${formatFileSize(result.fileSize)}`)
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to upload profile picture')
+    } finally {
+      setUploadingPicture(false)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -48,6 +100,7 @@ function ProfileContent() {
         displayName,
         bio,
         goals,
+        profilePicture: profilePicture.trim(),
         selectedPrograms,
         updatedAt: new Date().toISOString(),
       })
@@ -57,8 +110,6 @@ function ProfileContent() {
       toast.error('Error updating profile: ' + error.message)
     }
   }
-
-  const programs = ['Strength Training', 'Physical Fitness', 'Fat Loss', 'Weight Gain']
 
   if (loading) {
     return (
@@ -84,12 +135,66 @@ function ProfileContent() {
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Profile Avatar */}
               <div className="flex items-center space-x-6 mb-6">
-                <div className="w-24 h-24 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-2xl font-bold shadow-lg">
+                {(profilePicture || picturePreview) ? (
+                  <img
+                    src={picturePreview || profilePicture}
+                    alt={displayName || 'Profile'}
+                    className="w-24 h-24 rounded-full object-cover shadow-lg border-2 border-purple-500"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none'
+                      e.currentTarget.nextElementSibling!.classList.remove('hidden')
+                    }}
+                  />
+                ) : null}
+                <div className={`w-24 h-24 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-2xl font-bold shadow-lg ${(profilePicture || picturePreview) ? 'hidden' : ''}`}>
                   {displayName.charAt(0).toUpperCase() || 'U'}
                 </div>
                 <div>
-                  <p className="text-white font-medium">Profile Avatar</p>
-                  <p className="text-gray-400 text-sm">Initials based on your name</p>
+                  <p className="text-white font-medium">Profile Picture</p>
+                  <p className="text-gray-400 text-sm">Upload an image or paste a URL</p>
+                </div>
+              </div>
+
+              {/* Profile Picture Upload */}
+              <div>
+                <label htmlFor="profilePicture" className="block text-sm font-medium text-white mb-2">
+                  Profile Picture
+                </label>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <label className="flex-1 cursor-pointer">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handlePictureFileUpload}
+                        disabled={uploadingPicture}
+                        className="hidden"
+                      />
+                      <div className="px-4 py-3 rounded-lg glass text-white hover:bg-purple-500/50 transition-colors flex items-center justify-center gap-2">
+                        <FaUpload />
+                        {uploadingPicture ? 'Uploading...' : 'Upload Image'}
+                      </div>
+                    </label>
+                    <span className="text-gray-400 text-sm">OR</span>
+                    <input
+                      id="profilePicture"
+                      type="url"
+                      value={profilePicture}
+                      onChange={(e) => {
+                        setProfilePicture(e.target.value)
+                        setPicturePreview('')
+                      }}
+                      className="flex-1 px-4 py-3 rounded-lg glass text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      placeholder="Paste image URL"
+                    />
+                  </div>
+                  {picturePreview && (
+                    <div className="mt-2">
+                      <img src={picturePreview} alt="Preview" className="w-32 h-32 rounded-full object-cover border-2 border-purple-500" />
+                      <p className="text-gray-400 text-xs mt-1">Preview</p>
+                    </div>
+                  )}
+                  <p className="text-gray-400 text-xs">Upload image file (max 10MB) or paste URL</p>
                 </div>
               </div>
 
@@ -143,28 +248,32 @@ function ProfileContent() {
                 <label className="block text-sm font-medium text-white mb-2">
                   Selected Programs
                 </label>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  {programs.map((program) => (
-                    <label
-                      key={program}
-                      className="flex items-center space-x-2 cursor-pointer"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selectedPrograms.includes(program)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setSelectedPrograms([...selectedPrograms, program])
-                          } else {
-                            setSelectedPrograms(selectedPrograms.filter((p) => p !== program))
-                          }
-                        }}
-                        className="w-4 h-4 rounded text-purple-500 focus:ring-purple-500"
-                      />
-                      <span className="text-white text-sm">{program}</span>
-                    </label>
-                  ))}
-                </div>
+                {programs.length > 0 ? (
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    {programs.map((program) => (
+                      <label
+                        key={program.id}
+                        className="flex items-center space-x-2 cursor-pointer glass-card p-3 rounded-lg hover:bg-purple-500/20 transition-colors"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedPrograms.includes(program.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedPrograms([...selectedPrograms, program.id])
+                            } else {
+                              setSelectedPrograms(selectedPrograms.filter((p) => p !== program.id))
+                            }
+                          }}
+                          className="w-4 h-4 rounded text-purple-500 focus:ring-purple-500"
+                        />
+                        <span className="text-white text-sm">{program.title}</span>
+                      </label>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-gray-400 text-sm">No programs available. Please add programs from the admin page.</p>
+                )}
               </div>
 
               {/* Submit Button */}

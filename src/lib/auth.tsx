@@ -30,6 +30,7 @@ interface UserData {
   bio?: string
   goals?: string
   selectedPrograms?: string[]
+  profilePicture?: string
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)

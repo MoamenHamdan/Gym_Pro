@@ -1,10 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
 import { motion } from 'framer-motion'
-import { FaChevronLeft, FaChevronRight, FaStar } from 'react-icons/fa'
+import { collection, getDocs } from 'firebase/firestore'
+import { db } from '@/lib/firebase'
+import { FaStar } from 'react-icons/fa'
 
 interface Coach {
   id: string
@@ -15,104 +17,157 @@ interface Coach {
   badges: string[]
 }
 
-interface Testimonial {
+interface Feedback {
   id: string
-  name: string
+  userId: string
+  userName: string
+  userPicture?: string
+  comment: string
   rating: number
-  text: string
-  image?: string
+  createdAt: string
 }
 
-const defaultCoaches: Coach[] = [
-  {
-    id: '1',
-    name: 'John Smith',
-    yearsExperience: 10,
-    bio: 'Certified personal trainer with expertise in strength training and bodybuilding.',
-    image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400',
-    badges: ['Certified Trainer', 'Strength Expert'],
-  },
-  {
-    id: '2',
-    name: 'Sarah Johnson',
-    yearsExperience: 8,
-    bio: 'Specialized in cardio and weight loss programs. Helping clients achieve their fitness goals.',
-    image: 'https://images.unsplash.com/photo-1594381898411-846e7d193883?w=400',
-    badges: ['Cardio Expert', 'Nutrition Coach'],
-  },
-  {
-    id: '3',
-    name: 'Mike Davis',
-    yearsExperience: 12,
-    bio: 'Former athlete turned trainer. Expert in functional training and mobility.',
-    image: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=400',
-    badges: ['Functional Training', 'Athletic Performance'],
-  },
-  {
-    id: '4',
-    name: 'Emily Wilson',
-    yearsExperience: 6,
-    bio: 'Yoga and flexibility instructor. Focuses on holistic wellness and mind-body connection.',
-    image: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400',
-    badges: ['Yoga Instructor', 'Wellness Coach'],
-  },
-]
-
-const defaultTestimonials: Testimonial[] = [
-  {
-    id: '1',
-    name: 'Ahmed Ali',
-    rating: 5,
-    text: 'ProGym has transformed my life! The trainers are amazing and the facilities are top-notch.',
-  },
-  {
-    id: '2',
-    name: 'Maria Garcia',
-    rating: 5,
-    text: 'Best gym I\'ve ever been to. The programs are well-structured and the community is supportive.',
-  },
-  {
-    id: '3',
-    name: 'David Lee',
-    rating: 5,
-    text: 'I\'ve achieved my fitness goals faster than I ever imagined. Highly recommended!',
-  },
-  {
-    id: '4',
-    name: 'Lisa Chen',
-    rating: 5,
-    text: 'The personal trainers are knowledgeable and the atmosphere is motivating.',
-  },
-]
-
 export default function AboutPage() {
-  const [coaches, setCoaches] = useState<Coach[]>(defaultCoaches)
-  const [testimonials, setTestimonials] = useState<Testimonial[]>(defaultTestimonials)
-  const [coachScrollX, setCoachScrollX] = useState(0)
-  const [testimonialScrollX, setTestimonialScrollX] = useState(0)
+  const [coaches, setCoaches] = useState<Coach[]>([])
+  const [feedback, setFeedback] = useState<Feedback[]>([])
+  const [loading, setLoading] = useState(true)
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
 
-  const scrollCoaches = (direction: 'left' | 'right') => {
-    const container = document.getElementById('coaches-container')
-    if (container) {
-      const scrollAmount = 300
-      const newScrollX = direction === 'left' 
-        ? coachScrollX - scrollAmount 
-        : coachScrollX + scrollAmount
-      container.scrollTo({ left: newScrollX, behavior: 'smooth' })
-      setCoachScrollX(newScrollX)
-    }
-  }
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!db) {
+        console.error('Firebase Firestore is not initialized')
+        setLoading(false)
+        return
+      }
+      try {
+        // Fetch coaches
+        const coachesSnapshot = await getDocs(collection(db, 'coaches'))
+        const coachesData = coachesSnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        })) as Coach[]
+        
+        // Remove duplicates based on ID (in case of any data issues)
+        const uniqueCoaches = coachesData.filter((coach, index, self) =>
+          index === self.findIndex((c) => c.id === coach.id)
+        )
+        
+        setCoaches(uniqueCoaches)
 
-  const scrollTestimonials = (direction: 'left' | 'right') => {
-    const container = document.getElementById('testimonials-container')
-    if (container) {
-      const scrollAmount = 300
-      const newScrollX = direction === 'left'
-        ? testimonialScrollX - scrollAmount
-        : testimonialScrollX + scrollAmount
-      container.scrollTo({ left: newScrollX, behavior: 'smooth' })
-      setTestimonialScrollX(newScrollX)
+        // Fetch feedback
+        const feedbackSnapshot = await getDocs(collection(db, 'feedback'))
+        const feedbackData = feedbackSnapshot.docs
+          .map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+          }))
+          .sort((a, b) => new Date(b.createdAt || '').getTime() - new Date(a.createdAt || '').getTime()) as Feedback[]
+        setFeedback(feedbackData.slice(0, 10)) // Show latest 10
+      } catch (error) {
+        console.error('Error fetching data:', error)
+      } finally {
+        setLoading(false)
+      }
     }
+    fetchData()
+  }, [])
+
+  useEffect(() => {
+    if (coaches.length > 0 && scrollContainerRef.current) {
+      const container = scrollContainerRef.current
+      let animationFrameId: number | null = null
+      let timeoutId: NodeJS.Timeout | null = null
+      let scrollPosition = 0
+      const scrollSpeed = 0.5
+      let isPaused = false
+      let cleanupCalled = false
+      
+      const handleMouseEnter = () => {
+        isPaused = true
+      }
+      
+      const handleMouseLeave = () => {
+        isPaused = false
+      }
+      
+      const cleanup = () => {
+        cleanupCalled = true
+        if (animationFrameId !== null) {
+          cancelAnimationFrame(animationFrameId)
+          animationFrameId = null
+        }
+        if (timeoutId !== null) {
+          clearTimeout(timeoutId)
+          timeoutId = null
+        }
+        if (container) {
+          container.removeEventListener('mouseenter', handleMouseEnter)
+          container.removeEventListener('mouseleave', handleMouseLeave)
+        }
+      }
+      
+      // Wait for DOM to update
+      timeoutId = setTimeout(() => {
+        if (cleanupCalled || !container || container.children.length === 0) {
+          return
+        }
+
+        // Calculate the width of one set of coaches
+        const firstCoachElement = container.children[0] as HTMLElement
+        if (!firstCoachElement) return
+        
+        const coachWidth = firstCoachElement.offsetWidth
+        const gap = 24 // space-x-6 = 1.5rem = 24px
+        const oneSetWidth = coaches.length * (coachWidth + gap)
+        
+        // Reset scroll position
+        container.scrollLeft = 0
+        scrollPosition = 0
+        
+        const autoScroll = () => {
+          if (cleanupCalled) {
+            return
+          }
+          
+          if (!isPaused && container && !cleanupCalled) {
+            scrollPosition += scrollSpeed
+            container.scrollLeft = scrollPosition
+            
+            // Reset when reaching end of first set for seamless loop
+            if (scrollPosition >= oneSetWidth) {
+              scrollPosition = 0
+              container.scrollLeft = 0
+            }
+          }
+          
+          if (!cleanupCalled) {
+            animationFrameId = requestAnimationFrame(autoScroll)
+          }
+        }
+        
+        // Add event listeners
+        container.addEventListener('mouseenter', handleMouseEnter)
+        container.addEventListener('mouseleave', handleMouseLeave)
+        
+        // Start auto-scroll
+        animationFrameId = requestAnimationFrame(autoScroll)
+      }, 100)
+      
+      return cleanup
+    }
+  }, [coaches])
+
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+        <Navbar />
+        <div className="min-h-screen flex items-center justify-center pt-20">
+          <div className="text-white text-xl">Loading...</div>
+        </div>
+        <Footer />
+      </main>
+    )
   }
 
   return (
@@ -136,106 +191,107 @@ export default function AboutPage() {
           {/* Coaches Section */}
           <section className="mb-20">
             <h2 className="text-3xl font-bold text-white mb-8 text-center">Our Coaches</h2>
-            <div className="relative">
-              <button
-                onClick={() => scrollCoaches('left')}
-                className="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-12 h-12 rounded-full glass-card flex items-center justify-center text-white hover:scale-110 transition-transform"
-                aria-label="Scroll left"
-              >
-                <FaChevronLeft />
-              </button>
-              <div
-                id="coaches-container"
-                className="flex space-x-6 overflow-x-auto scrollbar-hide py-4 px-12"
-                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-              >
-                {coaches.map((coach) => (
-                  <motion.div
-                    key={coach.id}
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    whileInView={{ opacity: 1, scale: 1 }}
-                    viewport={{ once: true }}
-                    className="flex-shrink-0 w-80"
-                  >
-                    <div className="glass-card p-6 rounded-2xl h-full">
-                      <img
-                        src={coach.image}
-                        alt={coach.name}
-                        className="w-full h-64 object-cover rounded-lg mb-4"
-                      />
-                      <h3 className="text-xl font-bold text-white mb-2">{coach.name}</h3>
-                      <p className="text-purple-300 text-sm mb-2">
-                        {coach.yearsExperience} years of experience
-                      </p>
-                      <p className="text-gray-300 text-sm mb-4">{coach.bio}</p>
-                      <div className="flex flex-wrap gap-2">
-                        {coach.badges.map((badge) => (
-                          <span
-                            key={badge}
-                            className="px-3 py-1 rounded-full glass text-white text-xs"
-                          >
-                            {badge}
-                          </span>
-                        ))}
+            {coaches.length > 0 ? (
+              <div className="relative overflow-hidden">
+                <div
+                  ref={scrollContainerRef}
+                  className="flex space-x-6 overflow-x-auto scrollbar-hide py-4"
+                  style={{
+                    scrollbarWidth: 'none',
+                    msOverflowStyle: 'none',
+                    WebkitScrollbar: { display: 'none' },
+                  }}
+                >
+                  {/* Render coaches multiple times for seamless infinite scroll */}
+                  {/* Only duplicate if we have few coaches to ensure smooth scrolling */}
+                  {(coaches.length <= 3 
+                    ? [...coaches, ...coaches, ...coaches, ...coaches] 
+                    : [...coaches, ...coaches]
+                  ).map((coach, index) => (
+                    <motion.div
+                      key={`coach-${coach.id}-set${Math.floor(index / coaches.length)}-idx${index % coaches.length}`}
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      whileInView={{ opacity: 1, scale: 1 }}
+                      viewport={{ once: true }}
+                      className="flex-shrink-0 w-80"
+                    >
+                      <div className="glass-card p-6 rounded-2xl h-full">
+                        <img
+                          src={coach.image}
+                          alt={coach.name}
+                          className="w-full h-64 object-cover rounded-lg mb-4"
+                        />
+                        <h3 className="text-xl font-bold text-white mb-2">{coach.name}</h3>
+                        <p className="text-purple-300 text-sm mb-2">
+                          {coach.yearsExperience} years of experience
+                        </p>
+                        <p className="text-gray-300 text-sm mb-4">{coach.bio}</p>
+                        <div className="flex flex-wrap gap-2">
+                          {coach.badges.map((badge, badgeIndex) => (
+                            <span
+                              key={`${coach.id}-${badge}-${badgeIndex}`}
+                              className="px-3 py-1 rounded-full glass text-white text-xs"
+                            >
+                              {badge}
+                            </span>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  </motion.div>
-                ))}
+                    </motion.div>
+                  ))}
+                </div>
               </div>
-              <button
-                onClick={() => scrollCoaches('right')}
-                className="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-12 h-12 rounded-full glass-card flex items-center justify-center text-white hover:scale-110 transition-transform"
-                aria-label="Scroll right"
-              >
-                <FaChevronRight />
-              </button>
-            </div>
+            ) : (
+              <p className="text-gray-300 text-center py-8">No coaches available yet.</p>
+            )}
           </section>
 
-          {/* Testimonials Section */}
+          {/* Feedback Section */}
           <section>
             <h2 className="text-3xl font-bold text-white mb-8 text-center">What Our Members Say</h2>
-            <div className="relative">
-              <button
-                onClick={() => scrollTestimonials('left')}
-                className="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-12 h-12 rounded-full glass-card flex items-center justify-center text-white hover:scale-110 transition-transform"
-                aria-label="Scroll left"
-              >
-                <FaChevronLeft />
-              </button>
-              <div
-                id="testimonials-container"
-                className="flex space-x-6 overflow-x-auto scrollbar-hide py-4 px-12"
-                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-              >
-                {testimonials.map((testimonial) => (
+            {feedback.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {feedback.map((item) => (
                   <motion.div
-                    key={testimonial.id}
+                    key={item.id}
                     initial={{ opacity: 0, scale: 0.9 }}
                     whileInView={{ opacity: 1, scale: 1 }}
                     viewport={{ once: true }}
-                    className="flex-shrink-0 w-80"
+                    className="glass-card p-6 rounded-2xl"
                   >
-                    <div className="glass-card p-6 rounded-2xl h-full">
-                      <div className="flex items-center mb-4">
-                        {[...Array(testimonial.rating)].map((_, i) => (
-                          <FaStar key={i} className="text-yellow-400 w-5 h-5" />
-                        ))}
+                    <div className="flex items-center mb-4">
+                      {item.userPicture ? (
+                        <img
+                          src={item.userPicture}
+                          alt={item.userName}
+                          className="w-12 h-12 rounded-full object-cover mr-3"
+                        />
+                      ) : (
+                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold mr-3">
+                          {item.userName.charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                      <div>
+                        <p className="text-white font-semibold">{item.userName}</p>
+                        <div className="flex items-center">
+                          {[...Array(5)].map((_, i) => (
+                            <FaStar
+                              key={i}
+                              className={`w-4 h-4 ${
+                                i < item.rating ? 'text-yellow-400' : 'text-gray-400'
+                              }`}
+                            />
+                          ))}
+                        </div>
                       </div>
-                      <p className="text-gray-300 mb-4">{testimonial.text}</p>
-                      <p className="text-white font-semibold">- {testimonial.name}</p>
                     </div>
+                    <p className="text-gray-300">{item.comment}</p>
                   </motion.div>
                 ))}
               </div>
-              <button
-                onClick={() => scrollTestimonials('right')}
-                className="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-12 h-12 rounded-full glass-card flex items-center justify-center text-white hover:scale-110 transition-transform"
-                aria-label="Scroll right"
-              >
-                <FaChevronRight />
-              </button>
-            </div>
+            ) : (
+              <p className="text-gray-300 text-center py-8">No feedback yet. Be the first to share your experience!</p>
+            )}
           </section>
         </div>
       </div>
@@ -243,4 +299,3 @@ export default function AboutPage() {
     </main>
   )
 }
-
