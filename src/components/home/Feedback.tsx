@@ -55,30 +55,47 @@ export default function Feedback() {
     <section className="py-20 px-4 sm:px-6 lg:px-8">
       <div className="max-w-4xl mx-auto">
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
+          initial={{ opacity: 0, y: 20, scale: 0.95 }}
+          whileInView={{ opacity: 1, y: 0, scale: 1 }}
           viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
-          className="glass-card p-8 rounded-3xl"
+          transition={{ duration: 0.6, type: 'spring' }}
+          className="gym-card glass-card p-8 rounded-3xl border border-white/10 hover:border-purple-400/50 relative overflow-hidden"
         >
-          <h2 className="text-3xl font-bold text-white mb-6 text-center">Share Your Feedback</h2>
+          <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 via-pink-500/10 to-blue-500/10"></div>
+          <div className="relative z-10">
+            <motion.h2
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6, delay: 0.1 }}
+              className="text-3xl md:text-4xl font-extrabold text-white mb-6 text-center"
+            >
+              <span className="bg-gradient-to-r from-purple-200 via-pink-200 to-white bg-clip-text text-transparent">
+                Share Your Feedback
+              </span>
+            </motion.h2>
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label className="block text-white mb-2">Rating</label>
               <div className="flex space-x-2">
                 {[1, 2, 3, 4, 5].map((star) => (
-                  <button
+                  <motion.button
                     key={star}
                     type="button"
                     onClick={() => setRating(star)}
+                    whileHover={{ scale: 1.2, rotate: 360 }}
+                    whileTap={{ scale: 0.9 }}
+                    transition={{ duration: 0.3 }}
                     className="focus:outline-none"
                   >
                     <FaStar
-                      className={`w-8 h-8 transition-colors ${
-                        star <= rating ? 'text-yellow-400' : 'text-gray-400'
+                      className={`w-8 h-8 transition-all ${
+                        star <= rating 
+                          ? 'text-yellow-400 drop-shadow-[0_0_10px_rgba(250,204,21,0.6)]' 
+                          : 'text-gray-400 hover:text-yellow-300'
                       }`}
                     />
-                  </button>
+                  </motion.button>
                 ))}
               </div>
             </div>
@@ -93,14 +110,29 @@ export default function Feedback() {
                 required
               />
             </div>
-            <button
+            <motion.button
               type="submit"
               disabled={submitting}
-              className="w-full px-6 py-3 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold hover:scale-105 transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
+              whileHover={{ scale: submitting ? 1 : 1.05, y: submitting ? 0 : -2 }}
+              whileTap={{ scale: submitting ? 1 : 0.95 }}
+              className="ripple-effect w-full px-6 py-3 rounded-full bg-gradient-to-r from-purple-500 via-pink-500 to-red-500 text-white font-bold transition-all shadow-xl hover:shadow-2xl hover:shadow-purple-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {submitting ? 'Submitting...' : 'Submit Feedback'}
-            </button>
+              {submitting ? (
+                <span className="flex items-center justify-center gap-2">
+                  <motion.span
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                  >
+                    ⏳
+                  </motion.span>
+                  Submitting...
+                </span>
+              ) : (
+                'Submit Feedback'
+              )}
+            </motion.button>
           </form>
+          </div>
         </motion.div>
       </div>
     </section>

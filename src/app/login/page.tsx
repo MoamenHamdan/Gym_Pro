@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/auth'
 import { toast } from 'react-hot-toast'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
+import AnimatedBackground from '@/components/layout/AnimatedBackground'
 import { motion } from 'framer-motion'
 
 export default function LoginPage() {
@@ -58,18 +59,24 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+    <main className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative overflow-hidden">
+      <AnimatedBackground />
       <Navbar />
-      <div className="min-h-screen flex items-center justify-center pt-20 px-4 sm:px-6 lg:px-8">
+      <div className="min-h-screen flex items-center justify-center pt-20 px-4 sm:px-6 lg:px-8 relative z-10">
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="glass-card p-8 md:p-12 rounded-3xl max-w-md w-full"
+          initial={{ opacity: 0, y: 30, scale: 0.95 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.8 }}
+          className="glass-card p-8 md:p-12 rounded-3xl max-w-md w-full border border-white/10 relative overflow-hidden"
         >
-          <h1 className="text-3xl font-bold text-white mb-8 text-center">
-            {isLogin ? 'Welcome Back' : 'Create Account'}
-          </h1>
+          {/* Decorative gradient overlay */}
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-purple-500 via-pink-500 to-blue-500"></div>
+          <div className="relative z-10 mt-2">
+            <h1 className="text-4xl md:text-5xl font-extrabold text-white mb-8 text-center">
+              <span className="bg-gradient-to-r from-white via-purple-200 to-pink-200 bg-clip-text text-transparent">
+                {isLogin ? 'Welcome Back' : 'Create Account'}
+              </span>
+            </h1>
 
           <form onSubmit={handleSubmit} className="space-y-6">
             {!isLogin && (
@@ -138,6 +145,7 @@ export default function LoginPage() {
             >
               {isLogin ? "Don't have an account? Sign up" : 'Already have an account? Login'}
             </button>
+          </div>
           </div>
         </motion.div>
       </div>

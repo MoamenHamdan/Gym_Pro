@@ -55,15 +55,15 @@ export default function Features() {
         {items.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {items.map((item, index) => (
-              <motion.div
-                key={item.id}
-                initial={{ opacity: 0, y: 30, scale: 0.9 }}
-                whileInView={{ opacity: 1, y: 0, scale: 1 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.6, delay: index * 0.1 }}
-                whileHover={{ scale: 1.05, y: -10 }}
-                className="glass-card rounded-2xl overflow-hidden cursor-pointer"
-              >
+                <motion.div
+                  key={item.id}
+                  initial={{ opacity: 0, y: 30, scale: 0.9 }}
+                  whileInView={{ opacity: 1, y: 0, scale: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.6, delay: index * 0.1 }}
+                  whileHover={{ scale: 1.05, y: -10, rotateY: 5 }}
+                  className="gym-card glass-card rounded-2xl overflow-hidden cursor-pointer border border-white/10 hover:border-purple-400/50"
+                >
                 <div className="relative h-64 overflow-hidden">
                   <img
                     src={item.imageUrl}
@@ -107,16 +107,22 @@ export default function Features() {
                 description: 'Join a supportive community of fitness enthusiasts on the same journey.',
               },
             ].map((feature, index) => (
-              <motion.div
-                key={feature.title}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.6, delay: index * 0.1 }}
-                whileHover={{ scale: 1.05, y: -5 }}
-              >
-                <div className="glass-card p-6 rounded-2xl h-full">
-                  <div className="text-5xl mb-4">{feature.icon}</div>
+                <motion.div
+                  key={feature.title}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.6, delay: index * 0.1 }}
+                  whileHover={{ scale: 1.05, y: -8 }}
+                >
+                  <div className="gym-card glass-card p-6 rounded-2xl h-full border border-white/10 hover:border-purple-400/50">
+                    <motion.div
+                      whileHover={{ scale: 1.2, rotate: 360 }}
+                      transition={{ duration: 0.6 }}
+                      className="text-5xl mb-4 inline-block"
+                    >
+                      {feature.icon}
+                    </motion.div>
                   <h3 className="text-xl font-bold text-white mb-2">{feature.title}</h3>
                   <p className="text-gray-300">{feature.description}</p>
                 </div>

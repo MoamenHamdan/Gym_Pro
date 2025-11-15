@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
+import AnimatedBackground from '@/components/layout/AnimatedBackground'
 import { motion } from 'framer-motion'
 import { FaDiscord, FaCalendarAlt, FaUsers, FaTrophy, FaPlus, FaSignInAlt, FaSignOutAlt } from 'react-icons/fa'
 import { collection, getDocs, addDoc, doc, setDoc, deleteDoc, query, where, getDoc } from 'firebase/firestore'
@@ -70,36 +71,40 @@ function CommunityContent() {
       return
     }
     try {
-      // Fetch events
+      // Fetch events - show all events, not just future ones
       const eventsSnapshot = await getDocs(collection(db, 'events'))
-      const eventsData = eventsSnapshot.docs
+      const eventsData = (eventsSnapshot.docs
         .map((doc) => ({
           id: doc.id,
           ...doc.data(),
-        }))
-        .filter((event) => new Date(event.date) >= new Date())
-        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()) as Event[]
+        })) as Event[])
+        .sort((a, b) => {
+          // Sort by date, but handle invalid dates
+          const dateA = a.date ? new Date(a.date).getTime() : 0
+          const dateB = b.date ? new Date(b.date).getTime() : 0
+          return dateB - dateA // Newest first
+        })
       setEvents(eventsData)
 
       // Fetch groups with member counts and scores
-      const groupsSnapshot = await getDocs(collection(db, 'groups'))
+      const groupsSnapshot = await getDocs(collection(db!, 'groups'))
       const groupsData = await Promise.all(
         groupsSnapshot.docs.map(async (doc) => {
           const groupData = doc.data() as Group
-          const membersSnapshot = await getDocs(collection(db, 'groups', doc.id, 'members'))
+          const membersSnapshot = await getDocs(collection(db!, 'groups', doc.id, 'members'))
           const memberIds = membersSnapshot.docs.map((m) => m.id)
           
           // Calculate score: member count + completed challenges
           let score = memberIds.length
           for (const memberId of memberIds) {
-            const progressSnapshot = await getDocs(collection(db, 'users', memberId, 'progress'))
+            const progressSnapshot = await getDocs(collection(db!, 'users', memberId, 'progress'))
             const completedCount = progressSnapshot.docs.filter((p) => p.data().completed === true).length
             score += completedCount
           }
 
           return {
-            id: doc.id,
             ...groupData,
+            id: doc.id,
             members: memberIds,
             score,
           }
@@ -108,13 +113,13 @@ function CommunityContent() {
       setGroups(groupsData.sort((a, b) => b.score - a.score))
 
       // Fetch competitions
-      const competitionsSnapshot = await getDocs(collection(db, 'competitions'))
-      const competitionsData = competitionsSnapshot.docs
+      const competitionsSnapshot = await getDocs(collection(db!, 'competitions'))
+      const competitionsData = (competitionsSnapshot.docs
         .map((doc) => ({
           id: doc.id,
           ...doc.data(),
-        }))
-        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()) as Competition[]
+        })) as Competition[])
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
       setCompetitions(competitionsData)
     } catch (error) {
       console.error('Error fetching data:', error)
@@ -185,9 +190,10 @@ function CommunityContent() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+      <main className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative overflow-hidden">
+        <AnimatedBackground />
         <Navbar />
-        <div className="min-h-screen flex items-center justify-center pt-20">
+        <div className="min-h-screen flex items-center justify-center pt-20 relative z-10">
           <div className="text-white text-xl">Loading...</div>
         </div>
         <Footer />
@@ -196,18 +202,33 @@ function CommunityContent() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+    <main className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative overflow-hidden">
+      <AnimatedBackground />
       <Navbar />
-      <div className="min-h-screen pt-20 px-4 sm:px-6 lg:px-8 py-12">
+      <div className="min-h-screen pt-24 px-4 sm:px-6 lg:px-8 py-16 relative z-10">
         <div className="max-w-7xl mx-auto">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="text-center mb-12"
+            transition={{ duration: 0.8 }}
+            className="text-center mb-16"
           >
-            <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">Community</h1>
-            <p className="text-xl text-gray-300">
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ duration: 0.8, delay: 0.2 }}
+              className="inline-block mb-6"
+            >
+              <span className="px-4 py-2 rounded-full glass-card text-purple-300 text-sm font-semibold backdrop-blur-xl border border-purple-500/30">
+                Connect & Grow
+              </span>
+            </motion.div>
+            <h1 className="text-5xl md:text-6xl lg:text-7xl font-extrabold text-white mb-6 leading-tight">
+              <span className="bg-gradient-to-r from-white via-purple-200 to-pink-200 bg-clip-text text-transparent">
+                Community
+              </span>
+            </h1>
+            <p className="text-xl md:text-2xl text-gray-300 max-w-2xl mx-auto leading-relaxed">
               Join our fitness community and connect with like-minded individuals
             </p>
           </motion.div>
@@ -265,7 +286,8 @@ function CommunityContent() {
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="glass-card p-8 rounded-2xl text-center"
+              transition={{ duration: 0.6 }}
+              className="glass-card p-8 rounded-2xl text-center border border-white/10 hover:border-purple-400/30 transition-all duration-300"
             >
               <FaDiscord className="w-16 h-16 text-purple-400 mx-auto mb-4" />
               <h2 className="text-2xl font-bold text-white mb-4">Discord Community</h2>
@@ -281,7 +303,7 @@ function CommunityContent() {
                 className="px-6 py-3 rounded-full glass text-white font-medium hover:scale-105 transition-transform inline-block"
                 onClick={(e) => {
                   e.preventDefault()
-                  toast.info('Add your Discord link in the code')
+                  toast('Add your Discord link in the code')
                 }}
               >
                 Join Discord
@@ -300,7 +322,8 @@ function CommunityContent() {
                       key={event.id}
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="glass-card p-6 rounded-2xl cursor-pointer hover:scale-105 transition-transform"
+                      transition={{ duration: 0.5 }}
+                      className="glass-card p-6 rounded-2xl cursor-pointer border border-white/10 hover:border-purple-400/50 transition-all duration-300 hover:shadow-xl hover:shadow-purple-500/20 hover:-translate-y-1"
                       onClick={() => router.push(`/community/event/${event.id}`)}
                     >
                       {event.imageUrl && (
@@ -396,7 +419,8 @@ function CommunityContent() {
                         key={group.id}
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="glass-card p-6 rounded-2xl"
+                        transition={{ duration: 0.5 }}
+                        className="glass-card p-6 rounded-2xl border border-white/10 hover:border-purple-400/50 transition-all duration-300 hover:shadow-xl hover:shadow-purple-500/20 hover:-translate-y-1"
                       >
                         <div className="flex justify-between items-start mb-4">
                           <h3 className="text-xl font-bold text-white">{group.name}</h3>
@@ -484,7 +508,8 @@ function CommunityContent() {
                         key={competition.id}
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="glass-card p-6 rounded-2xl"
+                        transition={{ duration: 0.5 }}
+                        className="glass-card p-6 rounded-2xl border border-white/10 hover:border-purple-400/50 transition-all duration-300 hover:shadow-xl hover:shadow-purple-500/20 hover:-translate-y-1"
                       >
                         <h3 className="text-xl font-bold text-white mb-2">{competition.title}</h3>
                         <p className="text-gray-300 text-sm mb-4">{competition.description}</p>

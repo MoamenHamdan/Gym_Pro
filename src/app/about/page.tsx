@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
+import AnimatedBackground from '@/components/layout/AnimatedBackground'
 import { motion } from 'framer-motion'
 import { collection, getDocs } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
@@ -57,12 +58,12 @@ export default function AboutPage() {
 
         // Fetch feedback
         const feedbackSnapshot = await getDocs(collection(db, 'feedback'))
-        const feedbackData = feedbackSnapshot.docs
+        const feedbackData = (feedbackSnapshot.docs
           .map((doc) => ({
             id: doc.id,
             ...doc.data(),
-          }))
-          .sort((a, b) => new Date(b.createdAt || '').getTime() - new Date(a.createdAt || '').getTime()) as Feedback[]
+          })) as Feedback[])
+          .sort((a, b) => new Date(b.createdAt || '').getTime() - new Date(a.createdAt || '').getTime())
         setFeedback(feedbackData.slice(0, 10)) // Show latest 10
       } catch (error) {
         console.error('Error fetching data:', error)
@@ -160,9 +161,10 @@ export default function AboutPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+      <main className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative overflow-hidden">
+        <AnimatedBackground />
         <Navbar />
-        <div className="min-h-screen flex items-center justify-center pt-20">
+        <div className="min-h-screen flex items-center justify-center pt-20 relative z-10">
           <div className="text-white text-xl">Loading...</div>
         </div>
         <Footer />
@@ -171,26 +173,49 @@ export default function AboutPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+    <main className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative overflow-hidden">
+      <AnimatedBackground />
       <Navbar />
-      <div className="min-h-screen pt-20 px-4 sm:px-6 lg:px-8 py-12">
+      <div className="min-h-screen pt-24 px-4 sm:px-6 lg:px-8 py-16 relative z-10">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="text-center mb-12"
+            transition={{ duration: 0.8 }}
+            className="text-center mb-16"
           >
-            <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">About ProGym</h1>
-            <p className="text-xl text-gray-300 max-w-2xl mx-auto">
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ duration: 0.8, delay: 0.2 }}
+              className="inline-block mb-6"
+            >
+              <span className="px-4 py-2 rounded-full glass-card text-purple-300 text-sm font-semibold backdrop-blur-xl border border-purple-500/30">
+                Our Story
+              </span>
+            </motion.div>
+            <h1 className="text-5xl md:text-6xl lg:text-7xl font-extrabold text-white mb-6 leading-tight">
+              <span className="bg-gradient-to-r from-white via-purple-200 to-pink-200 bg-clip-text text-transparent">
+                About ProGym
+              </span>
+            </h1>
+            <p className="text-xl md:text-2xl text-gray-300 max-w-2xl mx-auto leading-relaxed">
               We are dedicated to helping you achieve your fitness goals with expert coaches and world-class facilities.
             </p>
           </motion.div>
 
           {/* Coaches Section */}
           <section className="mb-20">
-            <h2 className="text-3xl font-bold text-white mb-8 text-center">Our Coaches</h2>
+            <motion.h2 
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6 }}
+              className="text-3xl md:text-4xl font-bold text-white mb-12 text-center"
+            >
+              Our Coaches
+            </motion.h2>
             {coaches.length > 0 ? (
               <div className="relative overflow-hidden">
                 <div
@@ -199,8 +224,7 @@ export default function AboutPage() {
                   style={{
                     scrollbarWidth: 'none',
                     msOverflowStyle: 'none',
-                    WebkitScrollbar: { display: 'none' },
-                  }}
+                  } as React.CSSProperties}
                 >
                   {/* Render coaches multiple times for seamless infinite scroll */}
                   {/* Only duplicate if we have few coaches to ensure smooth scrolling */}
@@ -213,9 +237,10 @@ export default function AboutPage() {
                       initial={{ opacity: 0, scale: 0.9 }}
                       whileInView={{ opacity: 1, scale: 1 }}
                       viewport={{ once: true }}
+                      transition={{ duration: 0.5 }}
                       className="flex-shrink-0 w-80"
                     >
-                      <div className="glass-card p-6 rounded-2xl h-full">
+                      <div className="glass-card p-6 rounded-2xl h-full border border-white/10 hover:border-purple-400/50 transition-all duration-300 hover:shadow-xl hover:shadow-purple-500/20 hover:-translate-y-1">
                         <img
                           src={coach.image}
                           alt={coach.name}
@@ -248,16 +273,25 @@ export default function AboutPage() {
 
           {/* Feedback Section */}
           <section>
-            <h2 className="text-3xl font-bold text-white mb-8 text-center">What Our Members Say</h2>
+            <motion.h2 
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6 }}
+              className="text-3xl md:text-4xl font-bold text-white mb-12 text-center"
+            >
+              What Our Members Say
+            </motion.h2>
             {feedback.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {feedback.map((item) => (
                   <motion.div
                     key={item.id}
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    whileInView={{ opacity: 1, scale: 1 }}
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
-                    className="glass-card p-6 rounded-2xl"
+                    transition={{ duration: 0.5 }}
+                    className="glass-card p-6 rounded-2xl border border-white/10 hover:border-purple-400/50 transition-all duration-300 hover:shadow-xl hover:shadow-purple-500/20 hover:-translate-y-1"
                   >
                     <div className="flex items-center mb-4">
                       {item.userPicture ? (

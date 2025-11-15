@@ -112,62 +112,94 @@ export default function Programs() {
           </p>
         </motion.div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {programs.map((program, index) => {
-            const IconComponent = iconMap[program.icon] || FaDumbbell
-            return (
-              <motion.div
-                key={program.id}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.6, delay: index * 0.1 }}
-                whileHover={{ scale: 1.05 }}
-              >
-                <div className="glass-card p-6 rounded-2xl h-full flex flex-col overflow-hidden">
-                  {program.picture ? (
-                    <img
-                      src={program.picture}
-                      alt={program.title}
-                      className="w-full h-48 object-cover rounded-lg mb-4"
-                    />
-                  ) : (
-                    <div className="w-full h-48 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg mb-4 flex items-center justify-center">
-                      <IconComponent className="w-16 h-16 text-white opacity-80" />
-                    </div>
-                  )}
-                  <h3 className="text-xl font-bold text-white mb-2">{program.title}</h3>
-                  <p className="text-gray-300 text-sm mb-4 flex-grow">{program.description}</p>
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    {(program.level || program.difficulty) && (
-                      <span className="px-3 py-1 rounded-full glass text-white text-xs font-medium">
-                        {program.level || program.difficulty}
-                      </span>
-                    )}
-                    {program.type && (
-                      <span className="px-3 py-1 rounded-full glass text-purple-300 text-xs font-medium">
-                        {program.type}
-                      </span>
-                    )}
-                    {program.tags && program.tags.slice(0, 2).map((tag) => (
-                      <span
-                        key={tag}
-                        className="px-2 py-1 rounded glass text-white text-xs"
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                  <Link
-                    href={`/services#${program.slug}`}
-                    className="px-4 py-2 rounded-lg glass text-white text-sm font-medium hover:scale-105 transition-transform text-center"
+        <div className="flex justify-center">
+          <div className={`grid gap-6 ${
+            programs.length === 1 
+              ? 'grid-cols-1' 
+              : programs.length === 2 
+              ? 'grid-cols-1 md:grid-cols-2' 
+              : programs.length === 3 
+              ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' 
+              : programs.length === 4 
+              ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-4' 
+              : programs.length >= 5 
+              ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' 
+              : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-4'
+          }`}>
+            {programs.map((program, index) => {
+              const IconComponent = iconMap[program.icon] || FaDumbbell
+              return (
+                <motion.div
+                  key={program.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.6, delay: index * 0.1 }}
+                  whileHover={{ scale: 1.05 }}
+                >
+                  <motion.div
+                    whileHover={{ y: -8, scale: 1.02 }}
+                    className="gym-card glass-card p-6 rounded-2xl h-full flex flex-col overflow-hidden border border-white/10 hover:border-purple-400/50"
                   >
-                    View / Join
-                  </Link>
-                </div>
-              </motion.div>
-            )
-          })}
+                    {program.picture ? (
+                      <motion.div
+                        whileHover={{ scale: 1.1 }}
+                        transition={{ duration: 0.3 }}
+                        className="w-full h-48 rounded-lg mb-4 overflow-hidden"
+                      >
+                        <img
+                          src={program.picture}
+                          alt={program.title}
+                          className="w-full h-full object-cover"
+                        />
+                      </motion.div>
+                    ) : (
+                      <motion.div
+                        whileHover={{ scale: 1.05 }}
+                        className="w-full h-48 bg-gradient-to-br from-purple-500 via-pink-500 to-red-500 rounded-lg mb-4 flex items-center justify-center relative overflow-hidden"
+                      >
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer"></div>
+                        <IconComponent className="w-16 h-16 text-white relative z-10 animate-barbell" />
+                      </motion.div>
+                    )}
+                    <h3 className="text-xl font-bold text-white mb-2">{program.title}</h3>
+                    <p className="text-gray-300 text-sm mb-4 flex-grow">{program.description}</p>
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      {(program.level || program.difficulty) && (
+                        <span className="px-3 py-1 rounded-full glass text-white text-xs font-medium">
+                          {program.level || program.difficulty}
+                        </span>
+                      )}
+                      {program.type && (
+                        <span className="px-3 py-1 rounded-full glass text-purple-300 text-xs font-medium">
+                          {program.type}
+                        </span>
+                      )}
+                      {program.tags && program.tags.slice(0, 2).map((tag) => (
+                        <span
+                          key={tag}
+                          className="px-2 py-1 rounded glass text-white text-xs"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                    <motion.div
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      <Link
+                        href={`/services#${program.slug}`}
+                        className="ripple-effect block px-4 py-2 rounded-lg bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30 text-white text-sm font-medium hover:from-purple-500/30 hover:to-pink-500/30 transition-all text-center"
+                      >
+                        View / Join
+                      </Link>
+                    </motion.div>
+                  </motion.div>
+                </motion.div>
+              )
+            })}
+          </div>
         </div>
       </div>
     </section>

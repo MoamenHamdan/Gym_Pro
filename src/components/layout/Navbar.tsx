@@ -34,6 +34,8 @@ export default function Navbar() {
     { href: '/services', label: 'Services' },
     { href: '/about', label: 'About' },
     { href: '/community', label: 'Community' },
+    { href: '/contact', label: 'Contact' },
+    { href: '/chatbot', label: 'AI Assistant' },
   ]
 
   return (

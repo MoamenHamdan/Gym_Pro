@@ -144,6 +144,17 @@ service cloud.firestore {
       // Only admins can create/update/delete
       allow write: if isAdmin();
     }
+    
+    // Messages collection
+    match /messages/{messageId} {
+      // Authenticated users can create messages (contact form)
+      // Note: Users need to be logged in to send messages
+      allow create: if isAuthenticated();
+      // Only admins can read messages
+      allow read: if isAdmin();
+      // Only admins can update/delete messages
+      allow update, delete: if isAdmin();
+    }
   }
 }
 

@@ -7,9 +7,10 @@ import { useAuth } from '@/lib/auth'
 import { toast } from 'react-hot-toast'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
+import AnimatedBackground from '@/components/layout/AnimatedBackground'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import { motion } from 'framer-motion'
-import { FaUser, FaVideo, FaFolder, FaCheck, FaTimes, FaTrash, FaEdit, FaUserTie, FaCalendarAlt, FaStar, FaTrophy, FaUpload } from 'react-icons/fa'
+import { FaUser, FaVideo, FaFolder, FaCheck, FaTimes, FaTrash, FaEdit, FaUserTie, FaCalendarAlt, FaStar, FaTrophy, FaUpload, FaEnvelope, FaReply } from 'react-icons/fa'
 import { fileToBase64, isImageFile, isVideoFile, formatFileSize } from '@/lib/fileUtils'
 import { createChunkedVideoData, extractChunksFromVideoData, reconstructBase64FromChunks, saveChunksToSubcollection, getChunksFromSubcollection, deleteChunksFromSubcollection } from '@/lib/videoUtils'
 
@@ -26,6 +27,7 @@ interface Video {
   title: string
   description: string
   category: string
+  day?: number // Day of the program (1-28 for 4 weeks)
   videoUrl?: string
   thumbnailUrl?: string
   duration?: string
@@ -79,6 +81,18 @@ interface Competition {
   date: string
 }
 
+interface Message {
+  id: string
+  name: string
+  email: string
+  subject: string
+  message: string
+  userId?: string
+  read: boolean
+  createdAt: string
+  updatedAt: string
+}
+
 export default function AdminPage() {
   return (
     <ProtectedRoute requireAdmin>
@@ -88,7 +102,7 @@ export default function AdminPage() {
 }
 
 function AdminContent() {
-  const [activeTab, setActiveTab] = useState<'users' | 'videos' | 'programs' | 'coaches' | 'events' | 'whyJoinUs' | 'competitions'>('users')
+  const [activeTab, setActiveTab] = useState<'users' | 'videos' | 'programs' | 'coaches' | 'events' | 'whyJoinUs' | 'competitions' | 'messages'>('users')
   const [users, setUsers] = useState<User[]>([])
   const [videos, setVideos] = useState<Video[]>([])
   const [programs, setPrograms] = useState<Program[]>([])
@@ -96,11 +110,32 @@ function AdminContent() {
   const [events, setEvents] = useState<Event[]>([])
   const [whyJoinUs, setWhyJoinUs] = useState<WhyJoinUs[]>([])
   const [competitions, setCompetitions] = useState<Competition[]>([])
+  const [messages, setMessages] = useState<Message[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     fetchData()
   }, [activeTab])
+
+  // Fetch messages count on mount for badge, and refresh periodically
+  useEffect(() => {
+    const fetchMessagesCount = async () => {
+      if (!db) return
+      try {
+        const messagesSnapshot = await getDocs(collection(db, 'messages'))
+        const messagesData = messagesSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Message))
+        // Sort by createdAt descending (newest first)
+        messagesData.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        setMessages(messagesData)
+      } catch (error) {
+        console.error('Error fetching messages count:', error)
+      }
+    }
+    fetchMessagesCount()
+    // Refresh messages count every 30 seconds
+    const interval = setInterval(fetchMessagesCount, 30000)
+    return () => clearInterval(interval)
+  }, [])
 
   const fetchData = async () => {
     if (!db) {
@@ -164,6 +199,13 @@ function AdminContent() {
       } else if (activeTab === 'competitions') {
         const competitionsSnapshot = await getDocs(collection(db, 'competitions'))
         setCompetitions(competitionsSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Competition)))
+      } else if (activeTab === 'messages') {
+        // Messages are already fetched on mount for badge, but refresh them when tab is active
+        const messagesSnapshot = await getDocs(collection(db, 'messages'))
+        const messagesData = messagesSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Message))
+        // Sort by createdAt descending (newest first)
+        messagesData.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        setMessages(messagesData)
       }
     } catch (error) {
       console.error('Error fetching data:', error)
@@ -174,17 +216,39 @@ function AdminContent() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+    <main className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative overflow-hidden">
+      <AnimatedBackground />
       <Navbar />
-      <div className="min-h-screen pt-20 px-4 sm:px-6 lg:px-8 py-12">
+      <div className="min-h-screen pt-24 px-4 sm:px-6 lg:px-8 py-16 relative z-10">
         <div className="max-w-7xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+            className="mb-12"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ duration: 0.8, delay: 0.2 }}
+              className="inline-block mb-6"
+            >
+              <span className="px-4 py-2 rounded-full glass-card text-purple-300 text-sm font-semibold backdrop-blur-xl border border-purple-500/30">
+                Admin Dashboard
+              </span>
+            </motion.div>
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-white mb-4">
+              <span className="bg-gradient-to-r from-white via-purple-200 to-pink-200 bg-clip-text text-transparent">
+                Admin Panel
+              </span>
+            </h1>
+          </motion.div>
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
+            transition={{ duration: 0.6, delay: 0.3 }}
             className="mb-8"
           >
-            <h1 className="text-4xl font-bold text-white mb-8">Admin Dashboard</h1>
             <div className="flex flex-wrap gap-4">
               <button
                 onClick={() => setActiveTab('users')}
@@ -263,6 +327,22 @@ function AdminContent() {
                 <FaTrophy className="inline mr-2" />
                 Competitions
               </button>
+              <button
+                onClick={() => setActiveTab('messages')}
+                className={`px-6 py-3 rounded-lg font-medium transition-colors relative ${
+                  activeTab === 'messages'
+                    ? 'bg-purple-500 text-white'
+                    : 'glass-card text-white hover:bg-purple-500/50'
+                }`}
+              >
+                <FaEnvelope className="inline mr-2" />
+                Messages
+                {messages.filter((m) => !m.read).length > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                    {messages.filter((m) => !m.read).length}
+                  </span>
+                )}
+              </button>
             </div>
           </motion.div>
 
@@ -273,6 +353,23 @@ function AdminContent() {
           {activeTab === 'events' && <EventsTab events={events} loading={loading} onUpdate={fetchData} />}
           {activeTab === 'whyJoinUs' && <WhyJoinUsTab whyJoinUs={whyJoinUs} loading={loading} onUpdate={fetchData} />}
           {activeTab === 'competitions' && <CompetitionsTab competitions={competitions} loading={loading} onUpdate={fetchData} />}
+          {activeTab === 'messages' && (
+            <MessagesTab 
+              messages={messages} 
+              loading={loading} 
+              onUpdate={() => {
+                fetchData()
+                // Also refresh messages for badge
+                if (db) {
+                  getDocs(collection(db, 'messages')).then((snapshot) => {
+                    const messagesData = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Message))
+                    messagesData.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                    setMessages(messagesData)
+                  }).catch(console.error)
+                }
+              }} 
+            />
+          )}
         </div>
       </div>
       <Footer />
@@ -281,9 +378,27 @@ function AdminContent() {
 }
 
 function UsersTab({ users, loading, onUpdate }: { users: User[]; loading: boolean; onUpdate: () => void }) {
-  const categories = ['fat-loss', 'gain-muscle', 'weight-gain']
+  const [programs, setPrograms] = useState<Program[]>([])
 
-  const toggleAccess = async (userId: string, category: string) => {
+  // Fetch programs dynamically
+  useEffect(() => {
+    const fetchPrograms = async () => {
+      if (!db) return
+      try {
+        const programsSnapshot = await getDocs(collection(db, 'programs'))
+        const programsData = programsSnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        })) as Program[]
+        setPrograms(programsData)
+      } catch (error) {
+        console.error('Error fetching programs:', error)
+      }
+    }
+    fetchPrograms()
+  }, [])
+
+  const toggleAccess = async (userId: string, programSlug: string) => {
     if (!db) {
       toast.error('Firebase is not initialized')
       return
@@ -292,9 +407,9 @@ function UsersTab({ users, loading, onUpdate }: { users: User[]; loading: boolea
       const userRef = doc(db, 'users', userId)
       const user = users.find((u) => u.id === userId)
       const currentCategories = user?.enrolledCategories || []
-      const newCategories = currentCategories.includes(category)
-        ? currentCategories.filter((c) => c !== category)
-        : [...currentCategories, category]
+      const newCategories = currentCategories.includes(programSlug)
+        ? currentCategories.filter((c) => c !== programSlug)
+        : [...currentCategories, programSlug]
 
       await updateDoc(userRef, {
         enrolledCategories: newCategories,
@@ -319,9 +434,17 @@ function UsersTab({ users, loading, onUpdate }: { users: User[]; loading: boolea
             <th className="text-left text-white p-4">Name</th>
             <th className="text-left text-white p-4">Email</th>
             <th className="text-left text-white p-4">Role</th>
-            <th className="text-left text-white p-4">Fat Loss</th>
-            <th className="text-left text-white p-4">Gain Muscle</th>
-            <th className="text-left text-white p-4">Weight Gain</th>
+            {programs.length > 0 ? (
+              programs.map((program) => (
+                <th key={program.id} className="text-left text-white p-4">{program.title}</th>
+              ))
+            ) : (
+              <>
+                <th className="text-left text-white p-4">Fat Loss</th>
+                <th className="text-left text-white p-4">Gain Muscle</th>
+                <th className="text-left text-white p-4">Weight Gain</th>
+              </>
+            )}
           </tr>
         </thead>
         <tbody>
@@ -330,24 +453,47 @@ function UsersTab({ users, loading, onUpdate }: { users: User[]; loading: boolea
               <td className="text-white p-4">{user.displayName || 'N/A'}</td>
               <td className="text-gray-300 p-4">{user.email}</td>
               <td className="text-gray-300 p-4">{user.role || 'user'}</td>
-              {categories.map((category) => (
-                <td key={category} className="p-4">
-                  <button
-                    onClick={() => toggleAccess(user.id, category)}
-                    className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                      user.enrolledCategories?.includes(category)
-                        ? 'bg-green-500 text-white'
-                        : 'bg-gray-600 text-gray-300'
-                    }`}
-                  >
-                    {user.enrolledCategories?.includes(category) ? (
-                      <FaCheck className="w-4 h-4" />
-                    ) : (
-                      <FaTimes className="w-4 h-4" />
-                    )}
-                  </button>
-                </td>
-              ))}
+              {programs.length > 0 ? (
+                programs.map((program) => (
+                  <td key={program.id} className="p-4">
+                    <button
+                      onClick={() => toggleAccess(user.id, program.slug)}
+                      className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                        user.enrolledCategories?.includes(program.slug)
+                          ? 'bg-green-500 text-white'
+                          : 'bg-gray-600 text-gray-300'
+                      }`}
+                    >
+                      {user.enrolledCategories?.includes(program.slug) ? (
+                        <FaCheck className="w-4 h-4" />
+                      ) : (
+                        <FaTimes className="w-4 h-4" />
+                      )}
+                    </button>
+                  </td>
+                ))
+              ) : (
+                <>
+                  {['fat-loss', 'gain-muscle', 'weight-gain'].map((category) => (
+                    <td key={category} className="p-4">
+                      <button
+                        onClick={() => toggleAccess(user.id, category)}
+                        className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                          user.enrolledCategories?.includes(category)
+                            ? 'bg-green-500 text-white'
+                            : 'bg-gray-600 text-gray-300'
+                        }`}
+                      >
+                        {user.enrolledCategories?.includes(category) ? (
+                          <FaCheck className="w-4 h-4" />
+                        ) : (
+                          <FaTimes className="w-4 h-4" />
+                        )}
+                      </button>
+                    </td>
+                  ))}
+                </>
+              )}
             </tr>
           ))}
         </tbody>
@@ -362,6 +508,7 @@ function VideosTab({ videos, loading, onUpdate }: { videos: Video[]; loading: bo
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [category, setCategory] = useState('fat-loss')
+  const [day, setDay] = useState<number>(1)
   const [duration, setDuration] = useState('')
   const [videoUrl, setVideoUrl] = useState('')
   const [thumbnailUrl, setThumbnailUrl] = useState('')
@@ -370,13 +517,45 @@ function VideosTab({ videos, loading, onUpdate }: { videos: Video[]; loading: bo
   const [uploadingThumbnail, setUploadingThumbnail] = useState(false)
   const [videoPreview, setVideoPreview] = useState<string>('')
   const [thumbnailPreview, setThumbnailPreview] = useState<string>('')
-  const { user } = useAuth()
+  const [programs, setPrograms] = useState<Program[]>([])
+  const { user, userData } = useAuth()
+
+  // Fetch programs for category dropdown
+  useEffect(() => {
+    const fetchPrograms = async () => {
+      if (!db) return
+      try {
+        const programsSnapshot = await getDocs(collection(db, 'programs'))
+        let programsData = programsSnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        })) as Program[]
+        
+        // If user is not admin, filter to only show programs they have access to
+        if (userData?.role !== 'admin' && userData?.enrolledCategories) {
+          programsData = programsData.filter((program) => 
+            userData.enrolledCategories?.includes(program.slug)
+          )
+        }
+        
+        setPrograms(programsData)
+        // Set default category to first program if available
+        if (programsData.length > 0 && !category) {
+          setCategory(programsData[0].slug)
+        }
+      } catch (error) {
+        console.error('Error fetching programs:', error)
+      }
+    }
+    fetchPrograms()
+  }, [userData])
 
   useEffect(() => {
     if (editingVideo && db) {
       setTitle(editingVideo.title)
       setDescription(editingVideo.description)
       setCategory(editingVideo.category)
+      setDay(editingVideo.day || 1)
       setDuration(editingVideo.duration || '')
       
       // Reconstruct video URL from chunks if needed
@@ -407,6 +586,7 @@ function VideosTab({ videos, loading, onUpdate }: { videos: Video[]; loading: bo
     setTitle('')
     setDescription('')
     setCategory('fat-loss')
+    setDay(1)
     setDuration('')
     setVideoUrl('')
     setThumbnailUrl('')
@@ -525,6 +705,7 @@ function VideosTab({ videos, loading, onUpdate }: { videos: Video[]; loading: bo
             title,
             description,
             category,
+            day: day || 1,
             duration: duration || '',
             useSubcollection: true, // Flag to indicate chunks are in subcollection
             chunkCount: chunkData.chunkCount,
@@ -564,6 +745,7 @@ function VideosTab({ videos, loading, onUpdate }: { videos: Video[]; loading: bo
             title,
             description,
             category,
+            day: day || 1,
             duration: duration || '',
             videoUrl: chunkData.videoUrl,
             useSubcollection: false,
@@ -598,6 +780,7 @@ function VideosTab({ videos, loading, onUpdate }: { videos: Video[]; loading: bo
           title,
           description,
           category,
+          day: day || 1,
           duration: duration || '',
           videoUrl: videoUrl.trim(),
           useSubcollection: false,
@@ -711,16 +894,51 @@ function VideosTab({ videos, loading, onUpdate }: { videos: Video[]; loading: bo
               />
             </div>
             <div>
-              <label className="block text-white mb-2">Category</label>
+              <label className="block text-white mb-2">Category (Program)</label>
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
-                className="w-full px-4 py-2 rounded-lg glass text-white"
+                className="w-full px-4 py-2 rounded-lg glass text-white bg-slate-800/50 border border-white/20"
                 required
               >
-                <option value="fat-loss">Fat Loss</option>
-                <option value="gain-muscle">Gain Muscle</option>
-                <option value="weight-gain">Weight Gain</option>
+                {programs.length > 0 ? (
+                  programs.map((program) => (
+                    <option key={program.id} value={program.slug} className="bg-slate-800 text-white">
+                      {program.title}
+                    </option>
+                  ))
+                ) : (
+                  <>
+                    <option value="fat-loss" className="bg-slate-800 text-white">Fat Loss</option>
+                    <option value="gain-muscle" className="bg-slate-800 text-white">Gain Muscle</option>
+                    <option value="weight-gain" className="bg-slate-800 text-white">Weight Gain</option>
+                  </>
+                )}
+              </select>
+              {programs.length === 0 && (
+                <p className="text-yellow-400 text-xs mt-1">No programs found. Please add programs first.</p>
+              )}
+            </div>
+            <div>
+              <label className="block text-white mb-2">Day (1-28 for 4 weeks)</label>
+              <select
+                value={day}
+                onChange={(e) => setDay(parseInt(e.target.value))}
+                className="w-full px-4 py-2 rounded-lg glass text-white bg-slate-800/50 border border-white/20"
+                required
+              >
+                {[1, 2, 3, 4].map((week) => (
+                  <optgroup key={week} label={`Week ${week} (Days ${((week - 1) * 7) + 1}-${week * 7})`}>
+                    {Array.from({ length: 7 }, (_, i) => {
+                      const dayNum = ((week - 1) * 7) + i + 1
+                      return (
+                        <option key={dayNum} value={dayNum} className="bg-slate-800 text-white">
+                          Day {dayNum} (Week {week}, Day {i + 1})
+                        </option>
+                      )
+                    })}
+                  </optgroup>
+                ))}
               </select>
             </div>
             <div>
@@ -847,6 +1065,7 @@ function VideosTab({ videos, loading, onUpdate }: { videos: Video[]; loading: bo
             <h3 className="text-lg font-bold text-white mb-2">{video.title}</h3>
             <p className="text-gray-300 text-sm mb-2 line-clamp-2">{video.description}</p>
             <p className="text-purple-300 text-xs mb-2">Category: {video.category}</p>
+            <p className="text-purple-300 text-xs mb-2">Day: {video.day || 1}</p>
             <p className="text-gray-400 text-xs mb-2">
               Status: {video.published !== false ? 'Published' : 'Draft'}
             </p>
@@ -894,7 +1113,6 @@ function ProgramsTab({ programs, loading, onUpdate }: { programs: Program[]; loa
   const [type, setType] = useState('Strength')
   const [tags, setTags] = useState('')
   const [picture, setPicture] = useState('')
-  const [icon, setIcon] = useState('dumbbell')
   const [uploadingPicture, setUploadingPicture] = useState(false)
   const [picturePreview, setPicturePreview] = useState<string>('')
 
@@ -908,7 +1126,6 @@ function ProgramsTab({ programs, loading, onUpdate }: { programs: Program[]; loa
       setType(editingProgram.type || 'Strength')
       setTags(editingProgram.tags?.join(', ') || '')
       setPicture(editingProgram.picture || '')
-      setIcon(editingProgram.icon || 'dumbbell')
       setShowAdd(true)
     }
   }, [editingProgram])
@@ -922,7 +1139,6 @@ function ProgramsTab({ programs, loading, onUpdate }: { programs: Program[]; loa
     setType('Strength')
     setTags('')
     setPicture('')
-    setIcon('dumbbell')
     setEditingProgram(null)
     setShowAdd(false)
     setPicturePreview('')
@@ -957,6 +1173,11 @@ function ProgramsTab({ programs, loading, onUpdate }: { programs: Program[]; loa
       return
     }
     try {
+      if (!picture.trim()) {
+        toast.error('Please upload a picture for the program')
+        return
+      }
+
       const programData = {
         title,
         slug,
@@ -965,8 +1186,7 @@ function ProgramsTab({ programs, loading, onUpdate }: { programs: Program[]; loa
         level,
         type,
         tags: tags.split(',').map((t) => t.trim()).filter(Boolean),
-        picture: picture.trim() || '',
-        icon,
+        picture: picture.trim(),
       }
 
       if (editingProgram) {
@@ -1059,12 +1279,12 @@ function ProgramsTab({ programs, loading, onUpdate }: { programs: Program[]; loa
                 <select
                   value={difficulty}
                   onChange={(e) => setDifficulty(e.target.value)}
-                  className="w-full px-4 py-2 rounded-lg glass text-white"
+                  className="w-full px-4 py-2 rounded-lg glass text-white bg-slate-800/50 border border-white/20"
                   required
                 >
-                  <option value="Beginner">Beginner</option>
-                  <option value="Intermediate">Intermediate</option>
-                  <option value="Advanced">Advanced</option>
+                  <option value="Beginner" className="bg-slate-800 text-white">Beginner</option>
+                  <option value="Intermediate" className="bg-slate-800 text-white">Intermediate</option>
+                  <option value="Advanced" className="bg-slate-800 text-white">Advanced</option>
                 </select>
               </div>
               <div>
@@ -1072,12 +1292,12 @@ function ProgramsTab({ programs, loading, onUpdate }: { programs: Program[]; loa
                 <select
                   value={level}
                   onChange={(e) => setLevel(e.target.value)}
-                  className="w-full px-4 py-2 rounded-lg glass text-white"
+                  className="w-full px-4 py-2 rounded-lg glass text-white bg-slate-800/50 border border-white/20"
                   required
                 >
-                  <option value="Beginner">Beginner</option>
-                  <option value="Intermediate">Intermediate</option>
-                  <option value="Advanced">Advanced</option>
+                  <option value="Beginner" className="bg-slate-800 text-white">Beginner</option>
+                  <option value="Intermediate" className="bg-slate-800 text-white">Intermediate</option>
+                  <option value="Advanced" className="bg-slate-800 text-white">Advanced</option>
                 </select>
               </div>
             </div>
@@ -1093,7 +1313,7 @@ function ProgramsTab({ programs, loading, onUpdate }: { programs: Program[]; loa
               />
             </div>
             <div>
-              <label className="block text-white mb-2">Picture</label>
+              <label className="block text-white mb-2">Picture <span className="text-red-400">*</span></label>
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <label className="flex-1 cursor-pointer">
@@ -1119,6 +1339,7 @@ function ProgramsTab({ programs, loading, onUpdate }: { programs: Program[]; loa
                     }}
                     className="flex-1 px-4 py-2 rounded-lg glass text-white"
                     placeholder="Paste image URL"
+                    required
                   />
                 </div>
                 {picturePreview && (
@@ -1127,21 +1348,14 @@ function ProgramsTab({ programs, loading, onUpdate }: { programs: Program[]; loa
                     <p className="text-gray-400 text-xs mt-1">Image preview</p>
                   </div>
                 )}
-                <p className="text-gray-400 text-xs">Upload image file (max 500KB) or paste URL</p>
+                {picture && !picturePreview && (
+                  <div className="mt-2">
+                    <img src={picture} alt="Preview" className="w-full max-h-48 object-cover rounded-lg" />
+                    <p className="text-gray-400 text-xs mt-1">Image preview</p>
+                  </div>
+                )}
+                <p className="text-gray-400 text-xs">Upload image file (max 10MB) or paste URL (required)</p>
               </div>
-            </div>
-            <div>
-              <label className="block text-white mb-2">Icon</label>
-              <select
-                value={icon}
-                onChange={(e) => setIcon(e.target.value)}
-                className="w-full px-4 py-2 rounded-lg glass text-white"
-              >
-                <option value="dumbbell">Dumbbell</option>
-                <option value="running">Running</option>
-                <option value="fire">Fire</option>
-                <option value="weight">Weight</option>
-              </select>
             </div>
             <div>
               <label className="block text-white mb-2">Tags (comma-separated)</label>
@@ -2090,6 +2304,215 @@ function CompetitionsTab({ competitions, loading, onUpdate }: { competitions: Co
           </div>
         ))}
       </div>
+    </div>
+  )
+}
+
+function MessagesTab({ messages, loading, onUpdate }: { messages: Message[]; loading: boolean; onUpdate: () => void }) {
+  const [selectedMessage, setSelectedMessage] = useState<Message | null>(null)
+
+  const markAsRead = async (messageId: string) => {
+    if (!db) {
+      toast.error('Firebase is not initialized')
+      return
+    }
+
+    try {
+      await updateDoc(doc(db, 'messages', messageId), {
+        read: true,
+        updatedAt: new Date().toISOString(),
+      })
+      toast.success('Message marked as read')
+      // Update local state immediately
+      setSelectedMessage((prev) => (prev?.id === messageId ? { ...prev, read: true } : prev))
+      onUpdate() // Refresh messages list
+    } catch (error) {
+      console.error('Error updating message:', error)
+      toast.error('Error updating message')
+    }
+  }
+
+  const markAsUnread = async (messageId: string) => {
+    if (!db) {
+      toast.error('Firebase is not initialized')
+      return
+    }
+
+    try {
+      await updateDoc(doc(db, 'messages', messageId), {
+        read: false,
+        updatedAt: new Date().toISOString(),
+      })
+      toast.success('Message marked as unread')
+      // Update local state immediately
+      setSelectedMessage((prev) => (prev?.id === messageId ? { ...prev, read: false } : prev))
+      onUpdate() // Refresh messages list
+    } catch (error) {
+      console.error('Error updating message:', error)
+      toast.error('Error updating message')
+    }
+  }
+
+  const handleDelete = async (messageId: string) => {
+    if (!confirm('Are you sure you want to delete this message?')) return
+    if (!db) {
+      toast.error('Firebase is not initialized')
+      return
+    }
+
+    try {
+      await deleteDoc(doc(db, 'messages', messageId))
+      toast.success('Message deleted')
+      if (selectedMessage?.id === messageId) {
+        setSelectedMessage(null)
+      }
+      onUpdate() // Refresh messages list
+    } catch (error) {
+      console.error('Error deleting message:', error)
+      toast.error('Error deleting message')
+    }
+  }
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString)
+    return new Intl.DateTimeFormat('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(date)
+  }
+
+  if (loading) {
+    return <div className="text-white text-center py-8">Loading messages...</div>
+  }
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Messages List */}
+      <div className="lg:col-span-1 space-y-4">
+        <div className="glass-card p-4 rounded-2xl">
+          <h2 className="text-xl font-bold text-white mb-4">
+            Messages ({messages.length})
+          </h2>
+          <div className="space-y-2 max-h-[600px] overflow-y-auto custom-scrollbar">
+            {messages.length === 0 ? (
+              <p className="text-gray-300 text-center py-8">No messages yet.</p>
+            ) : (
+              messages.map((message) => (
+                <div
+                  key={message.id}
+                  onClick={() => {
+                    setSelectedMessage(message)
+                    if (!message.read) {
+                      markAsRead(message.id)
+                    }
+                  }}
+                  className={`p-4 rounded-lg cursor-pointer transition-all ${
+                    selectedMessage?.id === message.id
+                      ? 'bg-purple-500/30 border-2 border-purple-500'
+                      : message.read
+                      ? 'glass-card hover:bg-white/5'
+                      : 'bg-purple-500/10 border-2 border-purple-400 hover:bg-purple-500/20'
+                  }`}
+                >
+                  <div className="flex items-start justify-between mb-2">
+                    <h3 className="font-bold text-white text-sm truncate">{message.name}</h3>
+                    {!message.read && (
+                      <span className="bg-red-500 text-white text-xs rounded-full w-2 h-2 flex-shrink-0 mt-1" />
+                    )}
+                  </div>
+                  <p className="text-gray-300 text-xs mb-1 truncate">{message.subject}</p>
+                  <p className="text-gray-400 text-xs truncate">{message.email}</p>
+                  <p className="text-gray-500 text-xs mt-2">{formatDate(message.createdAt)}</p>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Message Details */}
+      <div className="lg:col-span-2">
+        {selectedMessage ? (
+          <div className="glass-card p-6 rounded-2xl">
+            <div className="flex items-start justify-between mb-6">
+              <div>
+                <h2 className="text-2xl font-bold text-white mb-2">{selectedMessage.subject}</h2>
+                <p className="text-gray-300">
+                  From: <span className="text-white font-semibold">{selectedMessage.name}</span>
+                </p>
+                <p className="text-gray-300">
+                  Email: <a href={`mailto:${selectedMessage.email}`} className="text-purple-300 hover:underline">{selectedMessage.email}</a>
+                </p>
+                <p className="text-gray-400 text-sm mt-2">
+                  {formatDate(selectedMessage.createdAt)}
+                </p>
+              </div>
+              <div className="flex space-x-2">
+                <button
+                  onClick={() => {
+                    window.location.href = `mailto:${selectedMessage.email}?subject=Re: ${encodeURIComponent(selectedMessage.subject)}`;
+                  }}
+                  className="px-4 py-2 rounded-lg bg-blue-500 text-white text-sm hover:scale-105 transition-transform flex items-center space-x-2"
+                >
+                  <FaReply />
+                  <span>Reply</span>
+                </button>
+                {selectedMessage.read ? (
+                  <button
+                    onClick={() => markAsUnread(selectedMessage.id)}
+                    className="px-4 py-2 rounded-lg bg-gray-500 text-white text-sm hover:scale-105 transition-transform"
+                  >
+                    Mark Unread
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => markAsRead(selectedMessage.id)}
+                    className="px-4 py-2 rounded-lg bg-green-500 text-white text-sm hover:scale-105 transition-transform"
+                  >
+                    Mark Read
+                  </button>
+                )}
+                <button
+                  onClick={() => handleDelete(selectedMessage.id)}
+                  className="px-4 py-2 rounded-lg bg-red-500 text-white text-sm hover:scale-105 transition-transform"
+                >
+                  <FaTrash />
+                </button>
+              </div>
+            </div>
+            <div className="border-t border-white/20 pt-6">
+              <h3 className="text-white font-semibold mb-4">Message:</h3>
+              <div className="glass-card p-4 rounded-lg">
+                <p className="text-gray-200 whitespace-pre-wrap">{selectedMessage.message}</p>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="glass-card p-12 rounded-2xl text-center">
+            <FaEnvelope className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-300 text-lg">Select a message to view details</p>
+          </div>
+        )}
+      </div>
+      <style jsx>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: rgba(255, 255, 255, 0.1);
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: rgba(147, 51, 234, 0.5);
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: rgba(147, 51, 234, 0.7);
+        }
+      `}</style>
     </div>
   )
 }
