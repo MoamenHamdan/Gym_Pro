@@ -1,158 +1,150 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-const SYSTEM_PROMPT = `
-You are a helpful AI fitness assistant for ProGym, a professional fitness training facility.
-Your role is to assist users with:
-1. Fitness and workout questions
-2. Exercise techniques and form advice
-3. Nutrition and diet recommendations
-4. Gym equipment usage
-5. Workout program suggestions
-6. Fitness goal setting
-7. Health and wellness tips related to fitness
-8. Gym etiquette and safety
+const SYSTEM_PROMPT = `You are a professional fitness and health assistant for ProGym. Your role is to provide helpful, accurate, and safe advice about:
+
+- Fitness and exercise
+- Workout plans and routines
+- Nutrition and diet
+- Health and wellness
+- Gym equipment and techniques
+- Muscle building and strength training
+- Weight loss and fat burning
+- Cardio exercises
+- Flexibility and stretching
+- Recovery and rest
 
 IMPORTANT RULES:
-- ONLY answer questions related to fitness, workouts, nutrition, gym, health, and wellness
-- If asked about unrelated topics, reply:
-  "I'm a fitness assistant and can only help with gym and fitness-related questions. Is there anything about workouts, nutrition, or fitness I can help you with?"
-- Be friendly, accurate, and motivational.
-- Prioritize safety and proper form.
-`
+1. ONLY answer questions related to fitness, health, workouts, nutrition, and gym topics
+2. If asked about non-fitness topics, politely redirect: "I'm a fitness assistant. I can help you with workout plans, nutrition advice, exercise techniques, or fitness goals. What would you like to know?"
+3. Always prioritize safety - warn about proper form, warm-ups, and when to consult a doctor
+4. Be encouraging and motivational
+5. Provide practical, actionable advice
+6. Keep responses concise but informative
+7. Use fitness terminology appropriately
 
-const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions'
-const GEMINI_MODEL = 'google/gemini-2.0-flash-exp:free'
+Remember: You are friendly, knowledgeable, and focused solely on helping users achieve their fitness goals.`
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { message, conversationHistory } = body
+    const { message, conversationHistory } = await request.json()
 
     if (!message || typeof message !== 'string') {
-      return NextResponse.json({ error: 'Message is required' }, { status: 400 })
+      return NextResponse.json(
+        { error: 'Message is required' },
+        { status: 400 }
+      )
     }
 
-    // Get and trim API key to remove any whitespace
-    const apiKey = process.env.OPENROUTER_API_KEY?.trim()
-    if (!apiKey) {
-      console.error('OPENROUTER_API_KEY is not set in environment variables')
+    const openRouterApiKey = process.env.OPENROUTER_API_KEY
+
+    if (!openRouterApiKey) {
+      console.error('OPENROUTER_API_KEY is not configured')
       return NextResponse.json(
-        {
-          error: 'API key not configured',
-          response:
-            'Please add your OpenRouter API key (OPENROUTER_API_KEY) in .env.local and restart the server.',
-        },
+        { error: 'AI service is not configured. Please contact support.' },
         { status: 500 }
       )
     }
 
-    // Validate API key format (should start with sk-or-v1-)
-    if (!apiKey.startsWith('sk-or-v1-')) {
-      console.error('Invalid API key format. OpenRouter keys should start with "sk-or-v1-"')
-      return NextResponse.json(
-        {
-          error: 'Invalid API key format',
-          response:
-            'The API key format is incorrect. OpenRouter API keys should start with "sk-or-v1-". Please check your OPENROUTER_API_KEY in .env.local.',
-        },
-        { status: 500 }
-      )
+    // Prepare conversation history for OpenRouter (OpenAI-compatible format)
+    const messages = []
+
+    // Add system prompt for the first message
+    const isFirstUserMessage = !conversationHistory || conversationHistory.length <= 1
+    if (isFirstUserMessage) {
+      messages.push({
+        role: 'system',
+        content: SYSTEM_PROMPT,
+      })
     }
 
-    // Log API key presence (first 15 chars only for security)
-    console.log('API Key found:', apiKey.substring(0, 15) + '...', 'Length:', apiKey.length)
-
-    // Build conversation history with system prompt
-    const messages = [
-      { role: 'system', content: SYSTEM_PROMPT },
-      ...(conversationHistory || []).map((msg: any) => ({
-        role: msg.role,
-        content: msg.content,
-      })),
-      { role: 'user', content: message },
-    ]
-
-    const requestBody = {
-      model: GEMINI_MODEL,
-      messages,
-      temperature: 0.7,
-      max_tokens: 500,
+    // Build conversation history (skip the first assistant greeting)
+    if (conversationHistory && Array.isArray(conversationHistory) && conversationHistory.length > 1) {
+      for (let i = 1; i < conversationHistory.length; i++) {
+        const msg = conversationHistory[i]
+        if (msg.role === 'user' || msg.role === 'assistant') {
+          messages.push({
+            role: msg.role === 'user' ? 'user' : 'assistant',
+            content: msg.content,
+          })
+        }
+      }
     }
 
-    console.log('Sending request to OpenRouter:', {
-      url: OPENROUTER_API_URL,
-      model: GEMINI_MODEL,
-      messagesCount: messages.length,
+    // Add the current user message
+    messages.push({
+      role: 'user',
+      content: message,
     })
 
-    const response = await fetch(OPENROUTER_API_URL, {
+    // Get model name from environment or use a default
+    // Default: openai/gpt-oss-20b:free (free, 21B parameter model)
+    // Other options: google/gemini-2.0-flash-exp, anthropic/claude-3.5-sonnet, openai/gpt-4o-mini
+    const modelName = process.env.OPENROUTER_MODEL || 'openai/gpt-oss-20b:free'
+    const apiUrl = 'https://openrouter.ai/api/v1/chat/completions'
+    
+    console.log('Calling OpenRouter API:', apiUrl)
+    console.log('Model:', modelName)
+    console.log('Messages count:', messages.length)
+    
+    const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'HTTP-Referer': process.env.OPENROUTER_REFERER || 'https://progym.com',
-        'X-Title': process.env.OPENROUTER_TITLE || 'ProGym AI Assistant',
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${openRouterApiKey}`,
+        'HTTP-Referer': process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
+        'X-Title': 'ProGym Fitness Assistant',
       },
-      body: JSON.stringify(requestBody),
+      body: JSON.stringify({
+        model: modelName,
+        messages: messages,
+        temperature: 0.7,
+        max_tokens: 1024,
+      }),
     })
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}))
-      console.error('OpenRouter API Error:', errorData)
-      
-      // Handle authentication errors specifically
-      if (response.status === 401 || response.status === 403) {
-        const authError = errorData?.error?.message || errorData?.message || 'Invalid API key'
-        console.error('Authentication failed. Error details:', authError)
-        return NextResponse.json(
-          {
-            error: 'Authentication failed',
-            response: `Invalid API key: ${authError}. Please verify your OPENROUTER_API_KEY in .env.local is correct and restart the server. You can get a new API key from https://openrouter.ai/keys`,
-          },
-          { status: response.status }
-        )
+      const errorData = await response.text()
+      let errorMessage = 'Failed to get AI response. Please try again.'
+      try {
+        const errorJson = JSON.parse(errorData)
+        errorMessage = errorJson.error?.message || errorJson.error?.error?.message || errorMessage
+        console.error('OpenRouter API Error:', response.status, errorJson)
+      } catch {
+        console.error('OpenRouter API Error:', response.status, errorData)
       }
-      
-      // Handle rate limit errors
-      if (response.status === 429) {
-        const errorMessage = errorData?.error?.metadata?.raw || errorData?.error?.message || ''
-        return NextResponse.json(
-          {
-            error: 'Rate limit exceeded',
-            response: errorMessage.includes('rate-limited')
-              ? 'The free Gemini model is currently rate-limited. Please add your Google API key to OpenRouter: https://openrouter.ai/settings/integrations, or try again in a few moments.'
-              : 'Too many requests. Please try again in a few moments.',
-          },
-          { status: 429 }
-        )
-      }
-      
-      // Handle other errors
-      const errorMessage = errorData?.error?.message || errorData?.message || 'Unknown error'
       return NextResponse.json(
-        {
-          error: 'API request failed',
-          response: `AI service error: ${errorMessage}. Please check your API key and try again.`,
-        },
+        { error: errorMessage },
         { status: response.status }
       )
     }
 
     const data = await response.json()
-    const aiResponse =
-      data.choices?.[0]?.message?.content ||
-      data.choices?.[0]?.text ||
-      'No response received.'
+
+    if (!data.choices || !data.choices[0]) {
+      console.error('Invalid OpenRouter API response:', JSON.stringify(data, null, 2))
+      return NextResponse.json(
+        { error: 'Invalid response from AI service. Please check the server logs.' },
+        { status: 500 }
+      )
+    }
+
+    const aiResponse = data.choices[0].message?.content
+
+    if (!aiResponse) {
+      console.error('Empty response from OpenRouter:', JSON.stringify(data, null, 2))
+      return NextResponse.json(
+        { error: 'Received empty response from AI service.' },
+        { status: 500 }
+      )
+    }
 
     return NextResponse.json({ response: aiResponse })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Chatbot API Error:', error)
     return NextResponse.json(
-      {
-        error: 'Internal server error',
-        response: 'AI service failed. Try again later.',
-      },
-      { status: 500 },
+      { error: error?.message || 'An error occurred. Please try again.' },
+      { status: 500 }
     )
   }
 }
+
