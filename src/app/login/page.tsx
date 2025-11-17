@@ -59,29 +59,43 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative overflow-hidden">
+    <main className="min-h-screen bg-charcoal relative overflow-hidden">
       <AnimatedBackground />
       <Navbar />
       <div className="min-h-screen flex items-center justify-center pt-20 px-4 sm:px-6 lg:px-8 relative z-10">
         <motion.div
           initial={{ opacity: 0, y: 30, scale: 0.95 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
-          transition={{ duration: 0.8 }}
-          className="glass-card p-8 md:p-12 rounded-3xl max-w-md w-full border border-white/10 relative overflow-hidden"
+          transition={{ duration: 0.8, type: 'spring' }}
+          className="glass-3d p-8 md:p-12 rounded-3xl max-w-md w-full border border-white/10 relative overflow-hidden card-3d"
         >
           {/* Decorative gradient overlay */}
-          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-purple-500 via-pink-500 to-blue-500"></div>
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-neon-purple via-neon-pink to-neon-blue"></div>
           <div className="relative z-10 mt-2">
-            <h1 className="text-4xl md:text-5xl font-extrabold text-white mb-8 text-center">
-              <span className="bg-gradient-to-r from-white via-purple-200 to-pink-200 bg-clip-text text-transparent">
-                {isLogin ? 'Welcome Back' : 'Create Account'}
-              </span>
-            </h1>
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="text-center mb-8"
+            >
+              <h1 className="text-4xl md:text-5xl font-extrabold text-white mb-2">
+                <span className="text-gradient-neon">
+                  {isLogin ? 'Welcome Back' : 'Create Account'}
+                </span>
+              </h1>
+              <p className="text-gray-400 text-sm font-light">
+                {isLogin ? 'Continue your fitness journey' : 'Start your transformation today'}
+              </p>
+            </motion.div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
             {!isLogin && (
-              <div>
-                <label htmlFor="displayName" className="block text-sm font-medium text-white mb-2">
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.3 }}
+              >
+                <label htmlFor="displayName" className="block text-sm font-semibold text-gray-300 mb-2">
                   Full Name
                 </label>
                 <input
@@ -89,15 +103,19 @@ export default function LoginPage() {
                   type="text"
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
-                  className="w-full px-4 py-3 rounded-lg glass text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  className="w-full px-5 py-4 rounded-xl glass-card text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-neon-purple focus:border-neon-purple/50 transition-all"
                   placeholder="Enter your name"
                   required={!isLogin}
                 />
-              </div>
+              </motion.div>
             )}
 
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-white mb-2">
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: isLogin ? 0.2 : 0.4 }}
+            >
+              <label htmlFor="email" className="block text-sm font-semibold text-gray-300 mb-2">
                 Email
               </label>
               <input
@@ -105,14 +123,18 @@ export default function LoginPage() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 rounded-lg glass text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full px-5 py-4 rounded-xl glass-card text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-neon-purple focus:border-neon-purple/50 transition-all"
                 placeholder="Enter your email"
                 required
               />
-            </div>
+            </motion.div>
 
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-white mb-2">
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: isLogin ? 0.3 : 0.5 }}
+            >
+              <label htmlFor="password" className="block text-sm font-semibold text-gray-300 mb-2">
                 Password
               </label>
               <input
@@ -120,32 +142,44 @@ export default function LoginPage() {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 rounded-lg glass text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full px-5 py-4 rounded-xl glass-card text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-neon-purple focus:border-neon-purple/50 transition-all"
                 placeholder="Enter your password"
                 required
               />
               {!isLogin && password.length > 0 && password.length < 6 && (
-                <p className="text-red-400 text-xs mt-1">Password should be at least 6 characters</p>
+                <p className="text-neon-pink text-xs mt-2 font-medium">Password should be at least 6 characters</p>
               )}
-            </div>
+            </motion.div>
 
-            <button
+            <motion.button
               type="submit"
               disabled={loading}
-              className="w-full px-6 py-3 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold hover:scale-105 transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
+              whileHover={{ scale: loading ? 1 : 1.02, y: -2 }}
+              whileTap={{ scale: 0.98 }}
+              className="w-full px-6 py-4 rounded-full btn-primary text-white font-bold disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden"
             >
-              {loading ? 'Loading...' : isLogin ? 'Login' : 'Sign Up'}
-            </button>
+              <span className="relative z-10">
+                {loading ? 'Loading...' : isLogin ? 'Login' : 'Sign Up'}
+              </span>
+            </motion.button>
           </form>
 
-          <div className="mt-6 text-center">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.6 }}
+            className="mt-6 text-center"
+          >
             <button
               onClick={() => setIsLogin(!isLogin)}
-              className="text-purple-300 hover:text-purple-200 text-sm"
+              className="text-gray-400 hover:text-neon-purple text-sm font-medium transition-colors"
             >
-              {isLogin ? "Don't have an account? Sign up" : 'Already have an account? Login'}
+              {isLogin ? "Don't have an account? " : 'Already have an account? '}
+              <span className="text-neon-purple font-semibold">
+                {isLogin ? 'Sign up' : 'Login'}
+              </span>
             </button>
-          </div>
+          </motion.div>
           </div>
         </motion.div>
       </div>

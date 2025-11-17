@@ -9,6 +9,7 @@ import AnimatedBackground from '@/components/layout/AnimatedBackground'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import { motion } from 'framer-motion'
 import { FaRobot, FaPaperPlane, FaUser } from 'react-icons/fa'
+import MarkdownRenderer from '@/components/MarkdownRenderer'
 
 interface Message {
   id: string
@@ -115,7 +116,7 @@ function ChatbotContent() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative overflow-hidden">
+    <main className="min-h-screen bg-charcoal relative overflow-hidden">
       <AnimatedBackground />
       <Navbar />
       <div className="min-h-screen pt-24 px-4 sm:px-6 lg:px-8 py-16 relative z-10">
@@ -125,7 +126,7 @@ function ChatbotContent() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
-            className="text-center mb-8"
+            className="text-center mb-12"
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
@@ -133,29 +134,29 @@ function ChatbotContent() {
               transition={{ duration: 0.6, delay: 0.2 }}
               className="inline-block mb-6"
             >
-              <span className="px-4 py-2 rounded-full glass-card text-purple-300 text-sm font-semibold backdrop-blur-xl border border-purple-500/30">
-                AI Assistant
+              <span className="px-6 py-3 rounded-full glass-3d text-neon-purple text-sm font-bold tracking-wider uppercase border border-neon-purple/40 shadow-neon-purple">
+                🤖 AI Assistant
               </span>
             </motion.div>
             <h1 className="text-5xl md:text-6xl lg:text-7xl font-extrabold text-white mb-6 leading-tight">
-              <span className="bg-gradient-to-r from-white via-purple-200 to-pink-200 bg-clip-text text-transparent">
+              <span className="text-gradient-neon">
                 Fitness AI Assistant
               </span>
             </h1>
-            <p className="text-xl md:text-2xl text-gray-300 max-w-2xl mx-auto leading-relaxed">
+            <p className="text-xl md:text-2xl text-gray-300 max-w-2xl mx-auto leading-relaxed font-light">
               Ask me anything about fitness, workouts, nutrition, and health!
             </p>
           </motion.div>
 
-          {/* Chat Container */}
+          {/* Chat Container with 3D effect */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.3 }}
-            className="glass-card rounded-3xl border border-white/10 overflow-hidden shadow-2xl"
+            className="glass-3d rounded-3xl border border-white/10 overflow-hidden shadow-glass-lg card-3d"
           >
             {/* Messages Area */}
-            <div className="h-[600px] overflow-y-auto p-6 space-y-4 bg-gradient-to-b from-slate-900/50 to-slate-900/30">
+            <div className="h-[600px] overflow-y-auto p-6 space-y-4 bg-gradient-to-b from-charcoal/80 to-charcoal/60 backdrop-blur-sm">
               {messages.map((message, index) => (
                 <motion.div
                   key={message.id}
@@ -167,31 +168,38 @@ function ChatbotContent() {
                   }`}
                 >
                   {message.role === 'assistant' && (
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center flex-shrink-0 shadow-lg">
-                      <FaRobot className="w-5 h-5 text-white" />
-                    </div>
+                    <motion.div
+                      whileHover={{ scale: 1.1, rotate: 5 }}
+                      className="w-12 h-12 rounded-full bg-gradient-to-br from-neon-purple via-neon-pink to-neon-blue flex items-center justify-center flex-shrink-0 shadow-neon-purple border border-white/20"
+                    >
+                      <FaRobot className="w-6 h-6 text-white" />
+                    </motion.div>
                   )}
-                  <div
-                    className={`max-w-[80%] rounded-2xl p-4 ${
+                  <motion.div
+                    whileHover={{ scale: 1.02 }}
+                    className={`max-w-[80%] rounded-2xl p-5 ${
                       message.role === 'user'
-                        ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white'
-                        : 'glass-card text-gray-100 border border-white/10'
+                        ? 'bg-gradient-to-r from-neon-purple to-neon-pink text-white shadow-neon-purple border border-white/20'
+                        : 'glass-card text-gray-100 border border-white/10 shadow-lg'
                     }`}
                   >
-                    <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                      {message.content}
-                    </p>
+                    <div className="text-sm leading-relaxed">
+                      <MarkdownRenderer content={message.content} />
+                    </div>
                     <p className="text-xs mt-2 opacity-70">
                       {message.timestamp.toLocaleTimeString([], {
                         hour: '2-digit',
                         minute: '2-digit',
                       })}
                     </p>
-                  </div>
+                  </motion.div>
                   {message.role === 'user' && (
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center flex-shrink-0 shadow-lg">
-                      <FaUser className="w-5 h-5 text-white" />
-                    </div>
+                    <motion.div
+                      whileHover={{ scale: 1.1, rotate: -5 }}
+                      className="w-12 h-12 rounded-full bg-gradient-to-br from-neon-blue to-neon-cyan flex items-center justify-center flex-shrink-0 shadow-neon-blue border border-white/20"
+                    >
+                      <FaUser className="w-6 h-6 text-white" />
+                    </motion.div>
                   )}
                 </motion.div>
               ))}
@@ -201,14 +209,30 @@ function ChatbotContent() {
                   animate={{ opacity: 1 }}
                   className="flex gap-4 justify-start"
                 >
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center flex-shrink-0 shadow-lg">
-                    <FaRobot className="w-5 h-5 text-white" />
-                  </div>
-                  <div className="glass-card rounded-2xl p-4 border border-white/10">
+                  <motion.div
+                    animate={{ rotate: [0, 10, -10, 0] }}
+                    transition={{ duration: 1, repeat: Infinity }}
+                    className="w-12 h-12 rounded-full bg-gradient-to-br from-neon-purple via-neon-pink to-neon-blue flex items-center justify-center flex-shrink-0 shadow-neon-purple border border-white/20"
+                  >
+                    <FaRobot className="w-6 h-6 text-white" />
+                  </motion.div>
+                  <div className="glass-card rounded-2xl p-5 border border-white/10 shadow-lg">
                     <div className="flex gap-2">
-                      <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce"></div>
-                      <div className="w-2 h-2 bg-pink-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                      <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                      <motion.div
+                        animate={{ y: [0, -10, 0] }}
+                        transition={{ duration: 0.6, repeat: Infinity, delay: 0 }}
+                        className="w-3 h-3 bg-neon-purple rounded-full"
+                      />
+                      <motion.div
+                        animate={{ y: [0, -10, 0] }}
+                        transition={{ duration: 0.6, repeat: Infinity, delay: 0.2 }}
+                        className="w-3 h-3 bg-neon-pink rounded-full"
+                      />
+                      <motion.div
+                        animate={{ y: [0, -10, 0] }}
+                        transition={{ duration: 0.6, repeat: Infinity, delay: 0.4 }}
+                        className="w-3 h-3 bg-neon-blue rounded-full"
+                      />
                     </div>
                   </div>
                 </motion.div>
@@ -217,7 +241,7 @@ function ChatbotContent() {
             </div>
 
             {/* Input Area */}
-            <form onSubmit={handleSend} className="p-6 border-t border-white/10 bg-slate-900/50">
+            <form onSubmit={handleSend} className="p-6 border-t border-white/10 bg-charcoal/80 backdrop-blur-sm">
               <div className="flex gap-4">
                 <input
                   ref={inputRef}
@@ -225,21 +249,21 @@ function ChatbotContent() {
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   placeholder="Ask me about fitness, workouts, nutrition..."
-                  className="flex-1 px-6 py-4 rounded-2xl glass-card text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                  className="flex-1 px-6 py-4 rounded-2xl glass-card text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-neon-purple focus:border-neon-purple/50 transition-all"
                   disabled={loading}
                 />
                 <motion.button
                   type="submit"
                   disabled={!input.trim() || loading}
-                  whileHover={{ scale: 1.05 }}
+                  whileHover={{ scale: 1.05, y: -2 }}
                   whileTap={{ scale: 0.95 }}
-                  className="px-8 py-4 rounded-2xl bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold hover:from-purple-600 hover:to-pink-600 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  className="btn-primary px-8 py-4 rounded-2xl text-white font-bold disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                 >
                   <FaPaperPlane className="w-5 h-5" />
                   <span className="hidden sm:inline">Send</span>
                 </motion.button>
               </div>
-              <p className="text-xs text-gray-400 mt-3 text-center">
+              <p className="text-xs text-gray-400 mt-4 text-center font-light">
                 💡 Tip: Ask about workout plans, nutrition advice, exercise techniques, or fitness goals
               </p>
             </form>

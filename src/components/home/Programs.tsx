@@ -105,9 +105,9 @@ export default function Programs() {
           className="text-center mb-12"
         >
           <h2 className="text-4xl md:text-5xl font-bold text-white mb-4">
-            Explore Our Programs
+            <span className="text-gradient-neon">Explore Our Programs</span>
           </h2>
-          <p className="text-xl text-gray-300">
+          <p className="text-xl text-gray-300 font-light">
             Choose the program that fits your fitness goals
           </p>
         </motion.div>
@@ -138,8 +138,8 @@ export default function Programs() {
                   whileHover={{ scale: 1.05 }}
                 >
                   <motion.div
-                    whileHover={{ y: -8, scale: 1.02 }}
-                    className="gym-card glass-card p-6 rounded-2xl h-full flex flex-col overflow-hidden border border-white/10 hover:border-purple-400/50"
+                    whileHover={{ y: -10, scale: 1.03, rotateX: 5, rotateY: -2 }}
+                    className="glass-3d p-6 rounded-2xl h-full flex flex-col overflow-hidden border border-white/10 hover:border-neon-purple/50 card-3d"
                   >
                     {program.picture ? (
                       <motion.div
@@ -156,7 +156,7 @@ export default function Programs() {
                     ) : (
                       <motion.div
                         whileHover={{ scale: 1.05 }}
-                        className="w-full h-48 bg-gradient-to-br from-purple-500 via-pink-500 to-red-500 rounded-lg mb-4 flex items-center justify-center relative overflow-hidden"
+                        className="w-full h-48 bg-gradient-to-br from-neon-purple via-neon-pink to-neon-blue rounded-lg mb-4 flex items-center justify-center relative overflow-hidden shadow-neon-purple"
                       >
                         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer"></div>
                         <IconComponent className="w-16 h-16 text-white relative z-10 animate-barbell" />
@@ -190,7 +190,7 @@ export default function Programs() {
                     >
                       <Link
                         href={`/services#${program.slug}`}
-                        className="ripple-effect block px-4 py-2 rounded-lg bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30 text-white text-sm font-medium hover:from-purple-500/30 hover:to-pink-500/30 transition-all text-center"
+                        className="block px-4 py-3 rounded-lg btn-secondary text-white text-sm font-bold hover:border-neon-purple/50 transition-all text-center"
                       >
                         View / Join
                       </Link>

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { collection, getDocs, doc, updateDoc, addDoc, deleteDoc } from 'firebase/firestore'
+import { collection, getDocs, doc, updateDoc, addDoc, deleteDoc, query, where, writeBatch } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { useAuth } from '@/lib/auth'
 import { toast } from 'react-hot-toast'
@@ -10,7 +10,7 @@ import Footer from '@/components/layout/Footer'
 import AnimatedBackground from '@/components/layout/AnimatedBackground'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import { motion } from 'framer-motion'
-import { FaUser, FaVideo, FaFolder, FaCheck, FaTimes, FaTrash, FaEdit, FaUserTie, FaCalendarAlt, FaStar, FaTrophy, FaUpload, FaEnvelope, FaReply } from 'react-icons/fa'
+import { FaUser, FaVideo, FaFolder, FaCheck, FaTimes, FaTrash, FaEdit, FaUserTie, FaCalendarAlt, FaStar, FaTrophy, FaUpload, FaEnvelope, FaReply, FaChartLine, FaUnlock, FaRedo } from 'react-icons/fa'
 import { fileToBase64, isImageFile, isVideoFile, formatFileSize } from '@/lib/fileUtils'
 import { createChunkedVideoData, extractChunksFromVideoData, reconstructBase64FromChunks, saveChunksToSubcollection, getChunksFromSubcollection, deleteChunksFromSubcollection } from '@/lib/videoUtils'
 
@@ -102,7 +102,7 @@ export default function AdminPage() {
 }
 
 function AdminContent() {
-  const [activeTab, setActiveTab] = useState<'users' | 'videos' | 'programs' | 'coaches' | 'events' | 'whyJoinUs' | 'competitions' | 'messages'>('users')
+  const [activeTab, setActiveTab] = useState<'users' | 'userProgress' | 'videos' | 'programs' | 'coaches' | 'events' | 'whyJoinUs' | 'competitions' | 'messages'>('users')
   const [users, setUsers] = useState<User[]>([])
   const [videos, setVideos] = useState<Video[]>([])
   const [programs, setPrograms] = useState<Program[]>([])
@@ -262,6 +262,17 @@ function AdminContent() {
                 Users
               </button>
               <button
+                onClick={() => setActiveTab('userProgress')}
+                className={`px-6 py-3 rounded-lg font-medium transition-colors ${
+                  activeTab === 'userProgress'
+                    ? 'bg-purple-500 text-white'
+                    : 'glass-card text-white hover:bg-purple-500/50'
+                }`}
+              >
+                <FaChartLine className="inline mr-2" />
+                User Progress
+              </button>
+              <button
                 onClick={() => setActiveTab('videos')}
                 className={`px-6 py-3 rounded-lg font-medium transition-colors ${
                   activeTab === 'videos'
@@ -347,6 +358,7 @@ function AdminContent() {
           </motion.div>
 
           {activeTab === 'users' && <UsersTab users={users} loading={loading} onUpdate={fetchData} />}
+          {activeTab === 'userProgress' && <UserProgressTab loading={loading} onUpdate={fetchData} />}
           {activeTab === 'videos' && <VideosTab videos={videos} loading={loading} onUpdate={fetchData} />}
           {activeTab === 'programs' && <ProgramsTab programs={programs} loading={loading} onUpdate={fetchData} />}
           {activeTab === 'coaches' && <CoachesTab coaches={coaches} loading={loading} onUpdate={fetchData} />}
@@ -502,6 +514,397 @@ function UsersTab({ users, loading, onUpdate }: { users: User[]; loading: boolea
   )
 }
 
+interface UserProgress {
+  userId: string
+  userName: string
+  userEmail: string
+  programs: {
+    [programSlug: string]: {
+      completed: number
+      total: number
+      percentage: number
+      isCompleted: boolean
+    }
+  }
+}
+
+function UserProgressTab({ loading, onUpdate }: { loading: boolean; onUpdate: () => void }) {
+  const [userProgress, setUserProgress] = useState<UserProgress[]>([])
+  const [programs, setPrograms] = useState<Program[]>([])
+  const [loadingProgress, setLoadingProgress] = useState(true)
+
+  useEffect(() => {
+    fetchUserProgress()
+  }, [])
+
+  const fetchUserProgress = async () => {
+    if (!db) {
+      toast.error('Firebase is not initialized')
+      setLoadingProgress(false)
+      return
+    }
+
+    setLoadingProgress(true)
+    try {
+      // Fetch all users
+      const usersSnapshot = await getDocs(collection(db, 'users'))
+      const users = usersSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as User))
+
+      // Fetch all programs
+      const programsSnapshot = await getDocs(collection(db, 'programs'))
+      const programsData = programsSnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as Program[]
+      setPrograms(programsData)
+
+      // Calculate progress for each user
+      const progressData: UserProgress[] = []
+
+      for (const user of users) {
+        const userPrograms: { [programSlug: string]: { completed: number; total: number; percentage: number; isCompleted: boolean } } = {}
+
+        for (const program of programsData) {
+          // Get all videos for this program
+          const videosQuery = query(
+            collection(db, 'videos'),
+            where('category', '==', program.slug),
+            where('published', '==', true)
+          )
+          const videosSnapshot = await getDocs(videosQuery)
+          const totalVideos = videosSnapshot.docs.length
+
+          if (totalVideos > 0) {
+            // Get user's progress for this program
+            const progressSnapshot = await getDocs(collection(db, 'users', user.id, 'progress'))
+            const completedVideoIds = new Set(
+              progressSnapshot.docs
+                .filter((doc) => doc.data().completed === true)
+                .map((doc) => doc.id)
+            )
+
+            // Count completed videos that belong to this program
+            let completedCount = 0
+            videosSnapshot.docs.forEach((videoDoc) => {
+              if (completedVideoIds.has(videoDoc.id)) {
+                completedCount++
+              }
+            })
+
+            const percentage = Math.round((completedCount / totalVideos) * 100)
+            userPrograms[program.slug] = {
+              completed: completedCount,
+              total: totalVideos,
+              percentage,
+              isCompleted: percentage >= 100,
+            }
+          } else {
+            userPrograms[program.slug] = {
+              completed: 0,
+              total: 0,
+              percentage: 0,
+              isCompleted: false,
+            }
+          }
+        }
+
+        progressData.push({
+          userId: user.id,
+          userName: user.displayName || 'N/A',
+          userEmail: user.email || 'N/A',
+          programs: userPrograms,
+        })
+      }
+
+      setUserProgress(progressData)
+    } catch (error) {
+      console.error('Error fetching user progress:', error)
+      toast.error('Error fetching user progress')
+    } finally {
+      setLoadingProgress(false)
+    }
+  }
+
+  const reopenCourse = async (userId: string, programSlug: string) => {
+    if (!db) {
+      toast.error('Firebase is not initialized')
+      return
+    }
+
+    if (!confirm(`Are you sure you want to reopen the course "${programSlug}" for this user? This will mark all videos as incomplete.`)) {
+      return
+    }
+
+    try {
+      // Get all videos for this program
+      const videosQuery = query(
+        collection(db, 'videos'),
+        where('category', '==', programSlug),
+        where('published', '==', true)
+      )
+      const videosSnapshot = await getDocs(videosQuery)
+
+      // Get user's progress
+      const progressSnapshot = await getDocs(collection(db, 'users', userId, 'progress'))
+      
+      // Find progress documents that match videos in this program
+      const progressToDelete: string[] = []
+      videosSnapshot.docs.forEach((videoDoc) => {
+        const progressDoc = progressSnapshot.docs.find((doc) => doc.id === videoDoc.id)
+        if (progressDoc) {
+          progressToDelete.push(videoDoc.id)
+        }
+      })
+
+      if (progressToDelete.length === 0) {
+        toast('No progress found to reset for this course.', { icon: 'ℹ️' })
+        return
+      }
+
+      // Delete in batches if needed (Firestore batch limit is 500)
+      const BATCH_LIMIT = 500
+      const firestoreDb = db // TypeScript helper
+      
+      if (!firestoreDb) {
+        toast.error('Firebase is not initialized')
+        return
+      }
+      
+      if (progressToDelete.length <= BATCH_LIMIT) {
+        // Single batch
+        const batch = writeBatch(firestoreDb)
+        progressToDelete.forEach((videoId) => {
+          batch.delete(doc(firestoreDb, 'users', userId, 'progress', videoId))
+        })
+        await batch.commit()
+        toast.success(`Course reopened! Deleted ${progressToDelete.length} progress records.`)
+      } else {
+        // Multiple batches
+        let deletedCount = 0
+        for (let i = 0; i < progressToDelete.length; i += BATCH_LIMIT) {
+          const batch = writeBatch(firestoreDb)
+          const batchIds = progressToDelete.slice(i, i + BATCH_LIMIT)
+          
+          batchIds.forEach((videoId) => {
+            batch.delete(doc(firestoreDb, 'users', userId, 'progress', videoId))
+          })
+          
+          await batch.commit()
+          deletedCount += batchIds.length
+        }
+        toast.success(`Course reopened! Deleted ${deletedCount} progress records.`)
+      }
+      
+      // Refresh the progress data
+      await fetchUserProgress()
+    } catch (error: any) {
+      console.error('Error reopening course:', error)
+      const errorMessage = error.message || 'Unknown error occurred'
+      
+      if (errorMessage.includes('permission') || errorMessage.includes('permissions-denied')) {
+        toast.error('Permission denied. Please check Firestore rules allow admin to delete progress.')
+      } else {
+        toast.error(`Error reopening course: ${errorMessage}`)
+      }
+    }
+  }
+
+  const resetUserProgress = async (userId: string, userName: string) => {
+    if (!db) {
+      toast.error('Firebase is not initialized')
+      return
+    }
+
+    if (!confirm(`Are you sure you want to reset ALL progress for ${userName}? This will delete all their completed videos and cannot be undone.`)) {
+      return
+    }
+
+    try {
+      // Get all progress documents for this user
+      const progressSnapshot = await getDocs(collection(db, 'users', userId, 'progress'))
+      
+      if (progressSnapshot.empty) {
+        toast('No progress found to reset.', { icon: 'ℹ️' })
+        return
+      }
+
+      const totalDocs = progressSnapshot.docs.length
+      const BATCH_LIMIT = 500 // Firestore batch limit
+      const firestoreDb = db // TypeScript helper
+      
+      // Delete in batches if there are more than 500 documents
+      if (!firestoreDb) {
+        toast.error('Firebase is not initialized')
+        return
+      }
+
+      if (totalDocs <= BATCH_LIMIT) {
+        // Single batch
+        const batch = writeBatch(firestoreDb)
+        progressSnapshot.docs.forEach((progressDoc) => {
+          batch.delete(doc(firestoreDb, 'users', userId, 'progress', progressDoc.id))
+        })
+        await batch.commit()
+        toast.success(`All progress reset for ${userName}! Deleted ${totalDocs} records.`)
+      } else {
+        // Multiple batches
+        let deletedCount = 0
+        const docs = progressSnapshot.docs
+        
+        for (let i = 0; i < docs.length; i += BATCH_LIMIT) {
+          const batch = writeBatch(firestoreDb)
+          const batchDocs = docs.slice(i, i + BATCH_LIMIT)
+          
+          batchDocs.forEach((progressDoc) => {
+            batch.delete(doc(firestoreDb, 'users', userId, 'progress', progressDoc.id))
+          })
+          
+          await batch.commit()
+          deletedCount += batchDocs.length
+          
+          // Show progress for large deletions
+          if (i + BATCH_LIMIT < docs.length) {
+            toast.loading(`Deleting progress... ${deletedCount}/${totalDocs}`, { id: 'reset-progress' })
+          }
+        }
+        
+        toast.dismiss('reset-progress')
+        toast.success(`All progress reset for ${userName}! Deleted ${deletedCount} records.`)
+      }
+      
+      // Refresh the progress data
+      await fetchUserProgress()
+    } catch (error: any) {
+      console.error('Error resetting user progress:', error)
+      const errorMessage = error.message || 'Unknown error occurred'
+      
+      if (errorMessage.includes('permission') || errorMessage.includes('permissions-denied')) {
+        toast.error('Permission denied. Please check Firestore rules allow admin to delete progress.')
+      } else if (errorMessage.includes('quota') || errorMessage.includes('limit')) {
+        toast.error('Batch limit exceeded. Please try again or contact support.')
+      } else {
+        toast.error(`Error resetting user progress: ${errorMessage}`)
+      }
+    }
+  }
+
+  if (loading || loadingProgress) {
+    return <div className="text-white text-center py-8">Loading user progress...</div>
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-2xl font-bold text-white">User Progress Overview</h2>
+        <button
+          onClick={fetchUserProgress}
+          className="px-4 py-2 rounded-lg bg-purple-500 text-white font-medium hover:scale-105 transition-transform"
+        >
+          Refresh
+        </button>
+      </div>
+
+      {userProgress.length === 0 ? (
+        <div className="text-center py-16 glass-card rounded-2xl">
+          <p className="text-gray-300 text-lg">No users found.</p>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {userProgress.map((user) => (
+            <motion.div
+              key={user.userId}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="glass-card p-6 rounded-2xl"
+            >
+              <div className="flex items-start justify-between mb-6">
+                <div>
+                  <h3 className="text-xl font-bold text-white mb-1">{user.userName}</h3>
+                  <p className="text-gray-400 text-sm">{user.userEmail}</p>
+                </div>
+                <button
+                  onClick={() => resetUserProgress(user.userId, user.userName)}
+                  className="px-4 py-2 rounded-lg bg-red-500/20 border border-red-500/30 text-red-400 font-medium hover:bg-red-500/30 transition-colors flex items-center gap-2"
+                >
+                  <FaRedo className="w-4 h-4" />
+                  Reset All Progress
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {programs.map((program) => {
+                  const progress = user.programs[program.slug] || {
+                    completed: 0,
+                    total: 0,
+                    percentage: 0,
+                    isCompleted: false,
+                  }
+
+                  return (
+                    <div
+                      key={program.id}
+                      className={`p-4 rounded-xl border ${
+                        progress.isCompleted
+                          ? 'bg-yellow-500/10 border-yellow-500/30'
+                          : 'bg-white/5 border-white/10'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex-1">
+                          <h4 className="text-lg font-semibold text-white mb-1">{program.title}</h4>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-gray-300">
+                              {progress.completed} / {progress.total} videos
+                            </span>
+                            {progress.isCompleted && (
+                              <span className="px-2 py-0.5 rounded-full bg-yellow-500/20 border border-yellow-500/30 text-yellow-400 text-xs font-semibold flex items-center gap-1">
+                                <FaTrophy className="w-3 h-3" />
+                                Completed
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Progress Bar */}
+                      <div className="mb-3">
+                        <div className="w-full h-2 bg-gray-700/50 rounded-full overflow-hidden">
+                          <motion.div
+                            initial={{ width: 0 }}
+                            animate={{ width: `${progress.percentage}%` }}
+                            transition={{ duration: 0.8, ease: "easeOut" }}
+                            className={`h-full rounded-full ${
+                              progress.isCompleted
+                                ? 'bg-gradient-to-r from-yellow-500 to-orange-500'
+                                : 'bg-gradient-to-r from-purple-500 via-pink-500 to-blue-500'
+                            }`}
+                          />
+                        </div>
+                        <p className="text-sm font-bold text-purple-400 mt-1">{progress.percentage}%</p>
+                      </div>
+
+                      {/* Actions */}
+                      {progress.isCompleted && (
+                        <button
+                          onClick={() => reopenCourse(user.userId, program.slug)}
+                          className="w-full px-4 py-2 rounded-lg bg-yellow-500/20 border border-yellow-500/30 text-yellow-400 font-medium hover:bg-yellow-500/30 transition-colors flex items-center justify-center gap-2"
+                        >
+                          <FaUnlock className="w-4 h-4" />
+                          Reopen Course
+                        </button>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function VideosTab({ videos, loading, onUpdate }: { videos: Video[]; loading: boolean; onUpdate: () => void }) {
   const [showUpload, setShowUpload] = useState(false)
   const [editingVideo, setEditingVideo] = useState<Video | null>(null)
@@ -608,7 +1011,7 @@ function VideosTab({ videos, loading, onUpdate }: { videos: Video[]; loading: bo
 
     // Firestore has a 1MB limit per field, but we'll chunk large videos
     // Allow larger files (up to 5MB) which will be split into chunks
-    const maxSizeMB = 5 // 5MB max - will be chunked if needed
+    const maxSizeMB = 100 // 100MB max - will be chunked if needed
     const maxSizeBytes = maxSizeMB * 1024 * 1024
 
     if (file.size > maxSizeBytes) {
@@ -644,7 +1047,7 @@ function VideosTab({ videos, loading, onUpdate }: { videos: Video[]; loading: bo
 
     // Thumbnails should be small, limit to 500KB raw (becomes ~667KB base64)
     // This ensures it fits in Firestore with the video data
-    const maxSizeMB = 0.99 // 500KB max
+    const maxSizeMB = 10 // 10MB max for thumbnails
     const maxSizeBytes = maxSizeMB * 1024 * 1024
 
     if (file.size > maxSizeBytes) {
@@ -675,14 +1078,12 @@ function VideosTab({ videos, loading, onUpdate }: { videos: Video[]; loading: bo
       return
     }
 
-    if (!videoUrl.trim()) {
-      toast.error('Please provide a video URL or upload a video file')
-      return
-    }
+    // Video and thumbnail are now optional - admin can add videos later
 
     try {
-      // Check if videoUrl is a base64 data URL (starts with data:)
-      const isBase64Video = videoUrl.trim().startsWith('data:video/')
+      // Check if videoUrl is provided and is a base64 data URL (starts with data:)
+      const hasVideo = videoUrl.trim().length > 0
+      const isBase64Video = hasVideo && videoUrl.trim().startsWith('data:video/')
       
       let videoChunkData: any = {}
       
@@ -774,7 +1175,7 @@ function VideosTab({ videos, loading, onUpdate }: { videos: Video[]; loading: bo
             toast.success('Video added successfully!')
           }
         }
-      } else {
+      } else if (hasVideo) {
         // Regular URL (not base64), store normally
         const videoData: any = {
           title,
@@ -807,6 +1208,39 @@ function VideosTab({ videos, loading, onUpdate }: { videos: Video[]; loading: bo
         } else {
           await addDoc(collection(db, 'videos'), videoData)
           toast.success('Video added successfully!')
+        }
+      } else {
+        // No video provided - create video with metadata only (video can be added later)
+        const videoData: any = {
+          title,
+          description,
+          category,
+          day: day || 1,
+          duration: duration || '',
+          useSubcollection: false,
+          published,
+          createdBy: user.uid,
+          updatedAt: new Date().toISOString(),
+        }
+        
+        // Add thumbnail if provided
+        if (thumbnailUrl && thumbnailUrl.trim()) {
+          videoData.thumbnailUrl = thumbnailUrl.trim()
+        }
+        
+        // Only add createdAt when creating new video
+        if (!editingVideo) {
+          videoData.createdAt = new Date().toISOString()
+        }
+
+        if (editingVideo) {
+          // Delete old chunks if they exist
+          await deleteChunksFromSubcollection(db, editingVideo.id)
+          await updateDoc(doc(db, 'videos', editingVideo.id), videoData)
+          toast.success('Video metadata updated successfully! You can add the video later.')
+        } else {
+          await addDoc(collection(db, 'videos'), videoData)
+          toast.success('Video created successfully! You can add the video file later.')
         }
       }
       
@@ -1155,7 +1589,7 @@ function ProgramsTab({ programs, loading, onUpdate }: { programs: Program[]; loa
 
     setUploadingPicture(true)
     try {
-      const result = await fileToBase64(file, 10)
+      const result = await fileToBase64(file, 20)
       setPicture(result.dataUrl)
       setPicturePreview(result.dataUrl)
       toast.success(`Image uploaded: ${formatFileSize(result.fileSize)}`)
@@ -1354,7 +1788,7 @@ function ProgramsTab({ programs, loading, onUpdate }: { programs: Program[]; loa
                     <p className="text-gray-400 text-xs mt-1">Image preview</p>
                   </div>
                 )}
-                <p className="text-gray-400 text-xs">Upload image file (max 10MB) or paste URL (required)</p>
+                <p className="text-gray-400 text-xs">Upload image file (max 20MB) or paste URL (optional)</p>
               </div>
             </div>
             <div>
@@ -1465,7 +1899,7 @@ function CoachesTab({ coaches, loading, onUpdate }: { coaches: Coach[]; loading:
 
     setUploadingImage(true)
     try {
-      const result = await fileToBase64(file, 10)
+      const result = await fileToBase64(file, 20)
       setImage(result.dataUrl)
       setImagePreview(result.dataUrl)
       toast.success(`Image uploaded: ${formatFileSize(result.fileSize)}`)
@@ -1725,7 +2159,7 @@ function EventsTab({ events, loading, onUpdate }: { events: Event[]; loading: bo
 
     setUploadingImage(true)
     try {
-      const result = await fileToBase64(file, 10)
+      const result = await fileToBase64(file, 20)
       setImageUrl(result.dataUrl)
       setImagePreview(result.dataUrl)
       toast.success(`Image uploaded: ${formatFileSize(result.fileSize)}`)
@@ -1977,7 +2411,7 @@ function WhyJoinUsTab({ whyJoinUs, loading, onUpdate }: { whyJoinUs: WhyJoinUs[]
 
     setUploadingImage(true)
     try {
-      const result = await fileToBase64(file, 10)
+      const result = await fileToBase64(file, 20)
       setImageUrl(result.dataUrl)
       setImagePreview(result.dataUrl)
       toast.success(`Image uploaded: ${formatFileSize(result.fileSize)}`)

@@ -1,6 +1,7 @@
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
 import AnimatedBackground from '@/components/layout/AnimatedBackground'
+import FloatingBubbles from '@/components/home/FloatingBubbles'
 import Hero from '@/components/home/Hero'
 import Programs from '@/components/home/Programs'
 import Banner from '@/components/home/Banner'
@@ -11,8 +12,9 @@ import Feedback from '@/components/home/Feedback'
 
 export default function Home() {
   return (
-    <main className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative overflow-hidden">
+    <main className="min-h-screen bg-charcoal relative overflow-hidden">
       <AnimatedBackground />
+      <FloatingBubbles />
       <Navbar />
       <Hero />
       <Banner

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { collection, getDocs, query, where, doc, setDoc, getDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
@@ -10,7 +10,7 @@ import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
 import AnimatedBackground from '@/components/layout/AnimatedBackground'
 import { motion } from 'framer-motion'
-import { FaLock, FaCheckCircle } from 'react-icons/fa'
+import { FaLock, FaCheckCircle, FaTrophy } from 'react-icons/fa'
 import { extractChunksFromVideoData, reconstructBase64FromChunks, getChunksFromSubcollection } from '@/lib/videoUtils'
 
 interface Category {
@@ -59,6 +59,14 @@ interface VideosByDay {
   [day: number]: Video[]
 }
 
+interface CategoryProgress {
+  [categorySlug: string]: {
+    completed: number
+    total: number
+    percentage: number
+  }
+}
+
 export default function ServicesPage() {
   const { user, userData } = useAuth()
   const [categories, setCategories] = useState<Category[]>(defaultCategories)
@@ -68,6 +76,54 @@ export default function ServicesPage() {
   const [loading, setLoading] = useState(true)
   const [selectedWeek, setSelectedWeek] = useState<number | null>(null)
   const [selectedDay, setSelectedDay] = useState<number | null>(null)
+  const [categoryProgress, setCategoryProgress] = useState<CategoryProgress>({})
+
+  // Calculate progress for a category
+  const calculateCategoryProgress = useCallback(async (categorySlug: string) => {
+    if (!user || !db) return { completed: 0, total: 0, percentage: 0 }
+
+    try {
+      // Get all videos for this category
+      const videosQuery = query(
+        collection(db, 'videos'),
+        where('category', '==', categorySlug),
+        where('published', '==', true)
+      )
+      const videosSnapshot = await getDocs(videosQuery)
+      const totalVideos = videosSnapshot.docs.length
+
+      if (totalVideos === 0) {
+        return { completed: 0, total: 0, percentage: 0 }
+      }
+
+      // Get all progress documents for this user
+      const progressSnapshot = await getDocs(collection(db, 'users', user.uid, 'progress'))
+      const completedVideoIds = new Set(
+        progressSnapshot.docs
+          .filter((doc) => doc.data().completed === true)
+          .map((doc) => doc.id)
+      )
+
+      // Count completed videos that belong to this category
+      let completedCount = 0
+      videosSnapshot.docs.forEach((videoDoc) => {
+        if (completedVideoIds.has(videoDoc.id)) {
+          completedCount++
+        }
+      })
+
+      const percentage = totalVideos > 0 ? Math.round((completedCount / totalVideos) * 100) : 0
+
+      return {
+        completed: completedCount,
+        total: totalVideos,
+        percentage,
+      }
+    } catch (error) {
+      console.error('Error calculating progress:', error)
+      return { completed: 0, total: 0, percentage: 0 }
+    }
+  }, [user, db])
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -96,6 +152,20 @@ export default function ServicesPage() {
     fetchCategories()
   }, [])
 
+  // Fetch progress when categories or user changes
+  useEffect(() => {
+    if (user && categories.length > 0) {
+      const fetchProgress = async () => {
+        const progress: CategoryProgress = {}
+        for (const category of categories) {
+          progress[category.slug] = await calculateCategoryProgress(category.slug)
+        }
+        setCategoryProgress(progress)
+      }
+      fetchProgress()
+    }
+  }, [user, categories, calculateCategoryProgress])
+
   const handleCategoryClick = async (category: Category) => {
     if (!user) {
       toast.error('Please log in to view services')
@@ -104,6 +174,13 @@ export default function ServicesPage() {
 
     if (!db) {
       toast.error('Firebase is not initialized')
+      return
+    }
+
+    // Check if program is locked (100% complete)
+    const progress = categoryProgress[category.slug]
+    if (progress && progress.percentage >= 100) {
+      toast.success('🎉 Congratulations! You have completed this program! It is now locked.')
       return
     }
 
@@ -218,23 +295,50 @@ export default function ServicesPage() {
       await setDoc(progressRef, {
         completed,
         completedAt: completed ? new Date().toISOString() : null,
+        updatedAt: new Date().toISOString(),
       }, { merge: true })
 
+      // Update videos state
       setVideos((prevVideos) =>
         prevVideos.map((video) =>
           video.id === videoId ? { ...video, completed } : video
         )
       )
       
+      // Update videosByDay state as well
+      setVideosByDay((prev) => {
+        const updated = { ...prev }
+        Object.keys(updated).forEach((day) => {
+          updated[parseInt(day)] = updated[parseInt(day)].map((video) =>
+            video.id === videoId ? { ...video, completed } : video
+          )
+        })
+        return updated
+      })
+
+      // Recalculate progress for the current category
+      if (selectedCategory) {
+        const progress = await calculateCategoryProgress(selectedCategory.slug)
+        setCategoryProgress((prev) => ({
+          ...prev,
+          [selectedCategory.slug]: progress,
+        }))
+
+        // Check if program is completed (100%)
+        if (progress.percentage >= 100) {
+          toast.success('🎉🎉🎉 Congratulations! You completed the entire program! 🎉🎉🎉')
+        }
+      }
+      
       if (completed) {
         playCompletionSound()
-        toast.success('Video marked as completed!')
+        toast.success('🎉 Video marked as completed! Great job!')
       } else {
         toast.success('Video marked as incomplete')
       }
     } catch (error) {
       console.error('Error updating progress:', error)
-      toast.error('Error updating progress')
+      toast.error('Error updating progress. Please try again.')
     }
   }
 
@@ -245,7 +349,7 @@ export default function ServicesPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative overflow-hidden">
+    <main className="min-h-screen bg-charcoal relative overflow-hidden">
       <AnimatedBackground />
       <Navbar />
       <div className="min-h-screen pt-24 px-4 sm:px-6 lg:px-8 py-16 relative z-10">
@@ -263,12 +367,12 @@ export default function ServicesPage() {
               transition={{ duration: 0.8, delay: 0.2 }}
               className="inline-block mb-6"
             >
-              <span className="px-4 py-2 rounded-full glass-card text-purple-300 text-sm font-semibold backdrop-blur-xl border border-purple-500/30">
+              <span className="px-6 py-3 rounded-full glass-3d text-neon-purple text-sm font-bold tracking-wider uppercase border border-neon-purple/40 shadow-neon-purple">
                 Premium Programs
               </span>
             </motion.div>
             <h1 className="text-5xl md:text-6xl lg:text-7xl font-extrabold text-white mb-6 leading-tight">
-              <span className="bg-gradient-to-r from-white via-purple-200 to-pink-200 bg-clip-text text-transparent">
+              <span className="text-gradient-neon">
                 Our Services
               </span>
             </h1>
@@ -281,6 +385,9 @@ export default function ServicesPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
             {categories.map((category, index) => {
               const hasAccess = userData?.enrolledCategories?.includes(category.slug) || false
+              const progress = categoryProgress[category.slug] || { completed: 0, total: 0, percentage: 0 }
+              const isCompleted = progress.percentage >= 100
+              
               return (
                 <motion.div
                   key={category.id}
@@ -290,11 +397,33 @@ export default function ServicesPage() {
                   className="group relative"
                 >
                   <motion.div
-                    whileHover={{ y: -8, scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    className="relative h-full gym-card glass-card p-8 rounded-3xl cursor-pointer overflow-hidden border border-white/10 hover:border-purple-400/50 transition-all duration-500 hover:shadow-2xl hover:shadow-purple-500/20"
-                    onClick={() => handleCategoryClick(category)}
+                    whileHover={!isCompleted ? { y: -8, scale: 1.02 } : {}}
+                    whileTap={!isCompleted ? { scale: 0.98 } : {}}
+                    className={`relative h-full gym-card glass-card p-8 rounded-3xl overflow-hidden border transition-all duration-500 ${
+                      isCompleted 
+                        ? 'border-yellow-500/50 cursor-not-allowed opacity-90' 
+                        : 'border-white/10 hover:border-purple-400/50 cursor-pointer hover:shadow-2xl hover:shadow-purple-500/20'
+                    }`}
+                    onClick={() => !isCompleted && handleCategoryClick(category)}
                   >
+                    {/* Completion overlay for 100% */}
+                    {isCompleted && (
+                      <div className="absolute inset-0 bg-gradient-to-br from-yellow-500/10 via-orange-500/10 to-yellow-500/10 rounded-3xl z-20 flex items-center justify-center">
+                        <div className="text-center">
+                          <motion.div
+                            initial={{ scale: 0 }}
+                            animate={{ scale: 1 }}
+                            transition={{ type: "spring", stiffness: 200, damping: 10 }}
+                            className="w-20 h-20 mx-auto mb-4 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center shadow-lg shadow-yellow-500/50"
+                          >
+                            <FaTrophy className="w-10 h-10 text-white" />
+                          </motion.div>
+                          <p className="text-yellow-400 font-bold text-lg">Program Completed!</p>
+                          <p className="text-yellow-300 text-sm mt-1">Locked</p>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Gradient overlay on hover */}
                     <div className="absolute inset-0 bg-gradient-to-br from-purple-500/0 via-pink-500/0 to-blue-500/0 group-hover:from-purple-500/10 group-hover:via-pink-500/10 group-hover:to-blue-500/10 transition-all duration-500 rounded-3xl"></div>
                     
@@ -307,19 +436,31 @@ export default function ServicesPage() {
                           <h3 className="text-2xl font-bold text-white mb-2 group-hover:text-purple-200 transition-colors duration-300">
                             {category.name}
                           </h3>
-                          {hasAccess && (
-                            <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-green-500/20 border border-green-500/30 text-green-400 text-xs font-semibold">
-                              <FaCheckCircle className="w-3 h-3" />
-                              Enrolled
-                            </span>
-                          )}
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {hasAccess && (
+                              <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-green-500/20 border border-green-500/30 text-green-400 text-xs font-semibold">
+                                <FaCheckCircle className="w-3 h-3" />
+                                Enrolled
+                              </span>
+                            )}
+                            {isCompleted && (
+                              <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-yellow-500/20 border border-yellow-500/30 text-yellow-400 text-xs font-semibold">
+                                <FaTrophy className="w-3 h-3" />
+                                Completed
+                              </span>
+                            )}
+                          </div>
                         </div>
                         <div className={`p-3 rounded-xl backdrop-blur-sm transition-all duration-300 ${
-                          hasAccess 
+                          isCompleted
+                            ? 'bg-yellow-500/20 border border-yellow-500/30 text-yellow-400'
+                            : hasAccess 
                             ? 'bg-green-500/20 border border-green-500/30 text-green-400' 
                             : 'bg-gray-500/20 border border-gray-500/30 text-gray-400 group-hover:border-purple-500/50 group-hover:text-purple-400'
                         }`}>
-                          {hasAccess ? (
+                          {isCompleted ? (
+                            <FaTrophy className="w-6 h-6" />
+                          ) : hasAccess ? (
                             <FaCheckCircle className="w-6 h-6" />
                           ) : (
                             <FaLock className="w-6 h-6" />
@@ -329,6 +470,31 @@ export default function ServicesPage() {
                       <p className="text-gray-300 text-base leading-relaxed mb-6 min-h-[60px]">
                         {category.description}
                       </p>
+
+                      {/* Progress Bar */}
+                      {hasAccess && progress.total > 0 && (
+                        <div className="mb-6">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-sm font-semibold text-gray-300">Progress</span>
+                            <span className="text-sm font-bold text-purple-400">
+                              {progress.completed} / {progress.total} ({progress.percentage}%)
+                            </span>
+                          </div>
+                          <div className="w-full h-3 bg-gray-700/50 rounded-full overflow-hidden border border-gray-600/30">
+                            <motion.div
+                              initial={{ width: 0 }}
+                              animate={{ width: `${progress.percentage}%` }}
+                              transition={{ duration: 0.8, ease: "easeOut" }}
+                              className={`h-full rounded-full ${
+                                isCompleted
+                                  ? 'bg-gradient-to-r from-yellow-500 to-orange-500'
+                                  : 'bg-gradient-to-r from-purple-500 via-pink-500 to-blue-500'
+                              } shadow-lg`}
+                            />
+                          </div>
+                        </div>
+                      )}
+
                       {!hasAccess && user && (
                         <motion.button
                           onClick={(e) => {
@@ -342,7 +508,7 @@ export default function ServicesPage() {
                           Purchase Access
                         </motion.button>
                       )}
-                      {hasAccess && (
+                      {hasAccess && !isCompleted && (
                         <motion.div
                           initial={{ scale: 0.9 }}
                           animate={{ scale: 1 }}

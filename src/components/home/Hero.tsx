@@ -1,29 +1,85 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
+import { FaChevronLeft, FaChevronRight } from 'react-icons/fa'
 
 export default function Hero() {
   const router = useRouter()
   const { user } = useAuth()
-  const [currentMainImageIndex, setCurrentMainImageIndex] = useState(0)
+  const [currentImageIndex, setCurrentImageIndex] = useState(0)
+  const [touchStart, setTouchStart] = useState(0)
+  const [touchEnd, setTouchEnd] = useState(0)
+  const carouselRef = useRef<HTMLDivElement>(null)
 
-  // Main images for rotation (3 images)
-  const mainImages = [
-    { src: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=800&q=80', alt: 'Fitness Training' },
-    { src: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800&q=80', alt: 'Workout Session' },
-    { src: 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=800&q=80', alt: 'Gym Training' },
+  // Professional fitness images
+  const heroImages = [
+    { 
+      src: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=1200&q=80', 
+      alt: 'Professional Fitness Training',
+      title: 'Expert Training',
+      subtitle: 'Train with certified professionals'
+    },
+    { 
+      src: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=1200&q=80', 
+      alt: 'Modern Gym Equipment',
+      title: 'State-of-the-Art Equipment',
+      subtitle: 'Access to premium fitness facilities'
+    },
+    { 
+      src: 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=1200&q=80', 
+      alt: 'Group Workout Session',
+      title: 'Community Support',
+      subtitle: 'Join a community of fitness enthusiasts'
+    },
+    { 
+      src: 'https://images.unsplash.com/photo-1540497077202-7c8a3999166f?w=1200&q=80', 
+      alt: 'Personalized Workout',
+      title: 'Personalized Programs',
+      subtitle: 'Customized plans for your goals'
+    },
   ]
 
-  // Rotate main image every 4 seconds
+  // Auto-rotate images
   useEffect(() => {
     const interval = setInterval(() => {
-      setCurrentMainImageIndex((prev) => (prev + 1) % mainImages.length)
-    }, 4000)
+      setCurrentImageIndex((prev) => (prev + 1) % heroImages.length)
+    }, 5000)
     return () => clearInterval(interval)
-  }, [mainImages.length])
+  }, [heroImages.length])
+
+  // Swipe handlers
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStart(e.targetTouches[0].clientX)
+  }
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX)
+  }
+
+  const handleTouchEnd = () => {
+    if (!touchStart || !touchEnd) return
+    const distance = touchStart - touchEnd
+    const isLeftSwipe = distance > 50
+    const isRightSwipe = distance < -50
+
+    if (isLeftSwipe) {
+      setCurrentImageIndex((prev) => (prev + 1) % heroImages.length)
+    }
+    if (isRightSwipe) {
+      setCurrentImageIndex((prev) => (prev - 1 + heroImages.length) % heroImages.length)
+    }
+  }
+
+  const goToNext = () => {
+    setCurrentImageIndex((prev) => (prev + 1) % heroImages.length)
+  }
+
+  const goToPrevious = () => {
+    setCurrentImageIndex((prev) => (prev - 1 + heroImages.length) % heroImages.length)
+  }
 
   const handleJoinClick = () => {
     if (user) {
@@ -34,12 +90,53 @@ export default function Hero() {
   }
 
   return (
-    <section className="relative min-h-screen flex items-center justify-center pt-20 px-4 sm:px-6 lg:px-8 overflow-hidden">
-      {/* Animated background gradients */}
+    <section className="relative min-h-screen flex items-center justify-center pt-20 px-4 sm:px-6 lg:px-8 overflow-hidden bg-charcoal">
+      {/* Enhanced animated background with neon gradients */}
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-purple-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-pink-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-2000"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-blue-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-4000"></div>
+        {/* Animated gradient orbs */}
+        <motion.div
+          animate={{
+            x: [0, 100, 0],
+            y: [0, -50, 0],
+            scale: [1, 1.2, 1],
+          }}
+          transition={{
+            duration: 20,
+            repeat: Infinity,
+            ease: "easeInOut",
+          }}
+          className="absolute -top-40 -right-40 w-96 h-96 bg-gradient-to-br from-neon-purple/30 to-neon-pink/20 rounded-full filter blur-3xl"
+        />
+        <motion.div
+          animate={{
+            x: [0, -100, 0],
+            y: [0, 50, 0],
+            scale: [1, 1.3, 1],
+          }}
+          transition={{
+            duration: 25,
+            repeat: Infinity,
+            ease: "easeInOut",
+            delay: 0.5,
+          }}
+          className="absolute -bottom-40 -left-40 w-96 h-96 bg-gradient-to-br from-neon-blue/30 to-neon-purple/20 rounded-full filter blur-3xl"
+        />
+        <motion.div
+          animate={{
+            x: [0, 50, 0],
+            y: [0, -30, 0],
+            scale: [1, 1.1, 1],
+          }}
+          transition={{
+            duration: 18,
+            repeat: Infinity,
+            ease: "easeInOut",
+            delay: 1,
+          }}
+          className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gradient-to-br from-neon-pink/25 to-neon-blue/25 rounded-full filter blur-3xl"
+        />
+        {/* Grid pattern overlay */}
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px] opacity-20"></div>
       </div>
 
       <div className="relative z-10 max-w-7xl mx-auto">
@@ -60,7 +157,7 @@ export default function Hero() {
                 initial={{ opacity: 0, scale: 0 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.6, type: 'spring' }}
-                className="inline-block mb-6 px-6 py-2 rounded-full glass-card border border-purple-500/30 text-purple-300 text-sm font-semibold"
+                className="inline-block mb-6 px-6 py-3 rounded-full glass-3d border border-neon-purple/40 text-neon-purple text-sm font-bold tracking-wider uppercase shadow-neon-purple"
               >
                 💪 START YOUR JOURNEY TODAY
               </motion.span>
@@ -69,7 +166,7 @@ export default function Hero() {
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.2 }}
-              className="text-5xl md:text-6xl lg:text-7xl font-extrabold text-white mb-6 leading-tight relative z-20"
+              className="text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-extrabold text-white mb-6 leading-tight relative z-20"
             >
               Transform Your Body,
               <br />
@@ -77,13 +174,9 @@ export default function Hero() {
                 initial={{ opacity: 0, x: -50 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.8, delay: 0.4 }}
-                className="bg-gradient-to-r from-purple-400 via-pink-400 to-red-400 bg-clip-text text-transparent gradient-animated relative z-20 inline-block"
+                className="text-gradient-neon relative z-20 inline-block"
                 style={{ 
-                  textShadow: '0 0 40px rgba(168, 85, 247, 0.8), 0 0 80px rgba(236, 72, 153, 0.6), 0 0 120px rgba(239, 68, 68, 0.4)',
-                  WebkitTextStroke: '2px rgba(168, 85, 247, 0.3)',
-                  filter: 'drop-shadow(0 0 12px rgba(168, 85, 247, 0.8)) drop-shadow(0 0 24px rgba(236, 72, 153, 0.6))',
-                  WebkitBackgroundClip: 'text',
-                  backgroundClip: 'text',
+                  filter: 'drop-shadow(0 0 20px rgba(141, 66, 251, 0.8)) drop-shadow(0 0 40px rgba(255, 51, 102, 0.6))',
                 }}
               >
                 Transform Your Life
@@ -93,7 +186,7 @@ export default function Hero() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.3 }}
-              className="text-xl md:text-2xl text-gray-200 mb-8 max-w-2xl mx-auto lg:mx-0 leading-relaxed"
+              className="text-xl md:text-2xl text-gray-300 mb-10 max-w-2xl mx-auto lg:mx-0 leading-relaxed font-light"
             >
               Join ProGym and experience professional fitness training with expert coaches and personalized programs designed for your success.
             </motion.p>
@@ -101,79 +194,154 @@ export default function Hero() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.4 }}
-              className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start"
+              className="flex flex-col sm:flex-row gap-6 justify-center lg:justify-start"
             >
               <motion.button
                 onClick={handleJoinClick}
-                whileHover={{ scale: 1.05, y: -2 }}
+                whileHover={{ scale: 1.05, y: -3 }}
                 whileTap={{ scale: 0.95 }}
-                className="ripple-effect px-8 py-4 rounded-full bg-gradient-to-r from-purple-500 via-pink-500 to-red-500 text-white text-lg font-bold transition-all shadow-xl hover:shadow-2xl hover:shadow-purple-500/50 animate-pulse-glow"
+                className="btn-primary px-10 py-5 rounded-full text-white text-lg font-bold relative overflow-hidden group"
               >
-                {user ? 'Go to Profile' : 'Get Started'}
+                <span className="relative z-10 flex items-center gap-2">
+                  {user ? 'Go to Profile' : 'Get Started'}
+                  <motion.span
+                    animate={{ x: [0, 5, 0] }}
+                    transition={{ duration: 1.5, repeat: Infinity }}
+                  >
+                    →
+                  </motion.span>
+                </span>
               </motion.button>
               <motion.button
                 onClick={() => router.push('/services')}
-                whileHover={{ scale: 1.05, y: -2 }}
+                whileHover={{ scale: 1.05, y: -3 }}
                 whileTap={{ scale: 0.95 }}
-                className="ripple-effect px-8 py-4 rounded-full glass-card border border-white/30 text-white text-lg font-bold hover:border-purple-400/50 transition-all shadow-lg hover:shadow-xl"
+                className="btn-secondary px-10 py-5 rounded-full text-white text-lg font-bold border border-white/20 hover:border-neon-purple/50"
               >
                 Explore Programs
               </motion.button>
             </motion.div>
           </motion.div>
 
-          {/* Image Content */}
+          {/* Modern Image Carousel */}
           <motion.div
             initial={{ opacity: 0, x: 50, scale: 0.9 }}
             animate={{ opacity: 1, x: 0, scale: 1 }}
             transition={{ duration: 0.8, delay: 0.2, type: 'spring' }}
             className="relative"
           >
-            <motion.div
-              whileHover={{ scale: 1.02 }}
-              transition={{ duration: 0.3 }}
-              className="relative w-full h-[500px] lg:h-[600px] rounded-3xl overflow-hidden glass-card border border-white/20 hover:border-purple-400/50 transition-all duration-300"
+            <div
+              ref={carouselRef}
+              className="relative w-full h-[500px] lg:h-[600px] rounded-3xl overflow-hidden glass-3d border border-white/20 card-3d"
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
             >
-              <motion.img
-                key={currentMainImageIndex}
-                src={mainImages[currentMainImageIndex].src}
-                alt={mainImages[currentMainImageIndex].alt}
-                initial={{ opacity: 0, scale: 1.1 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                transition={{ duration: 0.8, ease: 'easeInOut' }}
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  // Fallback if image fails to load
-                  e.currentTarget.style.display = 'none'
-                  const parent = e.currentTarget.parentElement
-                  if (parent) {
-                    parent.innerHTML = `
-                      <div class="w-full h-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
-                        <div class="text-white text-6xl font-bold">💪</div>
-                      </div>
-                    `
-                  }
-                }}
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
-              {/* Image indicator dots */}
-              <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-2 z-10">
-                {mainImages.map((_, index) => (
-                  <div
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={currentImageIndex}
+                  initial={{ opacity: 0, x: 100 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -100 }}
+                  transition={{ duration: 0.5 }}
+                  className="absolute inset-0"
+                >
+                  <img
+                    src={heroImages[currentImageIndex].src}
+                    alt={heroImages[currentImageIndex].alt}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none'
+                      const parent = e.currentTarget.parentElement
+                      if (parent) {
+                        parent.innerHTML = `
+                          <div class="w-full h-full bg-gradient-to-br from-neon-purple via-neon-pink to-neon-blue flex items-center justify-center">
+                            <div class="text-white text-6xl font-bold">💪</div>
+                          </div>
+                        `
+                      }
+                    }}
+                  />
+                  {/* Gradient overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
+                  
+                  {/* Image content overlay */}
+                  <div className="absolute bottom-0 left-0 right-0 p-8">
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.3 }}
+                    >
+                      <h3 className="text-3xl font-bold text-white mb-2">
+                        {heroImages[currentImageIndex].title}
+                      </h3>
+                      <p className="text-gray-200 text-lg">
+                        {heroImages[currentImageIndex].subtitle}
+                      </p>
+                    </motion.div>
+                  </div>
+                </motion.div>
+              </AnimatePresence>
+
+              {/* Navigation Arrows */}
+              <button
+                onClick={goToPrevious}
+                className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full glass-3d border border-white/20 flex items-center justify-center text-white hover:bg-neon-purple/30 transition-all z-10"
+                aria-label="Previous image"
+              >
+                <FaChevronLeft className="w-5 h-5" />
+              </button>
+              <button
+                onClick={goToNext}
+                className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full glass-3d border border-white/20 flex items-center justify-center text-white hover:bg-neon-purple/30 transition-all z-10"
+                aria-label="Next image"
+              >
+                <FaChevronRight className="w-5 h-5" />
+              </button>
+
+              {/* Dots Indicator */}
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-10">
+                {heroImages.map((_, index) => (
+                  <button
                     key={index}
-                    className={`h-2 rounded-full transition-all duration-300 ${
-                      index === currentMainImageIndex
-                        ? 'w-8 bg-white'
-                        : 'w-2 bg-white/50'
+                    onClick={() => setCurrentImageIndex(index)}
+                    className={`transition-all duration-300 rounded-full ${
+                      index === currentImageIndex
+                        ? 'w-8 h-2 bg-white'
+                        : 'w-2 h-2 bg-white/50 hover:bg-white/75'
                     }`}
+                    aria-label={`Go to image ${index + 1}`}
                   />
                 ))}
               </div>
-            </motion.div>
-            {/* Decorative elements */}
-            <div className="absolute -bottom-6 -left-6 w-32 h-32 bg-purple-500 rounded-full opacity-20 blur-2xl animate-pulse"></div>
-            <div className="absolute -top-6 -right-6 w-40 h-40 bg-pink-500 rounded-full opacity-20 blur-2xl animate-pulse" style={{ animationDelay: '1s' }}></div>
+            </div>
+
+            {/* Stats Grid Below Carousel */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
+              {[
+                { value: '10K+', label: 'Active Members' },
+                { value: '500+', label: 'Workout Videos' },
+                { value: '50+', label: 'Expert Coaches' },
+                { value: '98%', label: 'Success Rate' },
+              ].map((stat, index) => (
+                <motion.div
+                  key={index}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.5 + index * 0.1 }}
+                  className="glass-3d p-4 rounded-xl border border-white/10 text-center card-3d"
+                >
+                  <motion.div
+                    animate={{ scale: [1, 1.05, 1] }}
+                    transition={{ duration: 2, repeat: Infinity, delay: index * 0.3 }}
+                    className="text-2xl md:text-3xl font-bold text-gradient-neon mb-1"
+                  >
+                    {stat.value}
+                  </motion.div>
+                  <p className="text-gray-400 text-xs font-medium">{stat.label}</p>
+                </motion.div>
+              ))}
+            </div>
           </motion.div>
         </div>
       </div>

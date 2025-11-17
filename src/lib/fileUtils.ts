@@ -13,12 +13,12 @@ export interface FileUploadResult {
 /**
  * Converts a file to a base64 data URL
  * @param file - The file to convert
- * @param maxSizeMB - Maximum file size in MB (default: 10MB for images, 50MB for videos)
+ * @param maxSizeMB - Maximum file size in MB (default: 20MB for images, 100MB for videos)
  * @returns Promise with the data URL and file info
  */
 export async function fileToBase64(
   file: File,
-  maxSizeMB: number = file.type.startsWith('video/') ? 50 : 10
+  maxSizeMB: number = file.type.startsWith('video/') ? 100 : 20
 ): Promise<FileUploadResult> {
   return new Promise((resolve, reject) => {
     // Check file size

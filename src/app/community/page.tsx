@@ -190,7 +190,7 @@ function CommunityContent() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative overflow-hidden">
+      <main className="min-h-screen bg-charcoal relative overflow-hidden">
         <AnimatedBackground />
         <Navbar />
         <div className="min-h-screen flex items-center justify-center pt-20 relative z-10">
@@ -202,7 +202,7 @@ function CommunityContent() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative overflow-hidden">
+    <main className="min-h-screen bg-charcoal relative overflow-hidden">
       <AnimatedBackground />
       <Navbar />
       <div className="min-h-screen pt-24 px-4 sm:px-6 lg:px-8 py-16 relative z-10">
@@ -219,12 +219,12 @@ function CommunityContent() {
               transition={{ duration: 0.8, delay: 0.2 }}
               className="inline-block mb-6"
             >
-              <span className="px-4 py-2 rounded-full glass-card text-purple-300 text-sm font-semibold backdrop-blur-xl border border-purple-500/30">
+              <span className="px-6 py-3 rounded-full glass-3d text-neon-purple text-sm font-bold tracking-wider uppercase border border-neon-purple/40 shadow-neon-purple">
                 Connect & Grow
               </span>
             </motion.div>
             <h1 className="text-5xl md:text-6xl lg:text-7xl font-extrabold text-white mb-6 leading-tight">
-              <span className="bg-gradient-to-r from-white via-purple-200 to-pink-200 bg-clip-text text-transparent">
+              <span className="text-gradient-neon">
                 Community
               </span>
             </h1>

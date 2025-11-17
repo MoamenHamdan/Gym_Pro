@@ -31,8 +31,8 @@ service cloud.firestore {
       match /progress/{videoId} {
         // Users can read/write their own progress
         allow read, write: if isAuthenticated() && isOwner(userId);
-        // Admins can read all progress
-        allow read: if isAdmin();
+        // Admins can read and write (delete) all progress
+        allow read, write: if isAdmin();
       }
     }
     
